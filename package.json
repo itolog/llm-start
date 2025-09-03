@@ -1,14 +1,37 @@
 {
-  "name": "${PROJECT_NAME}",
+  "name": "lang-app",
   "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "start": "node dist/index.js",
+    "start:nodemon": "nodemon ./dist/index.js",
+    "dev": "concurrently \"tsc --watch\" \"nodemon ./dist/index.js\"",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
-  "dependencies": {},
+  "dependencies": {
+    "@langchain/core": "^0.3.73",
+    "@langchain/ollama": "^0.2.4",
+    "chalk": "^5.6.0",
+    "dotenv": "^17.2.2"
+  },
   "devDependencies": {
-    "typescript": "^5.5.3"
+    "@eslint/js": "^9.34.0",
+    "@types/node": "^24.3.0",
+    "concurrently": "^8.2.2",
+    "eslint": "^9.34.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.3.0",
+    "jiti": "^2.5.1",
+    "nodemon": "^3.0.1",
+    "prettier": "^3.0.0",
+    "typescript": "^5.5.3",
+    "typescript-eslint": "^8.42.0"
   },
   "private": true
 }
