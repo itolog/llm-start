@@ -1,5 +1,4 @@
 import chalk from "chalk";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import dotenv from "dotenv";
 dotenv.config({
   debug: false,
@@ -7,14 +6,21 @@ dotenv.config({
 
 import llm from "./llmModel";
 import { config } from "./config";
-
-const messages = [
-  new SystemMessage("Translate the following from English into Italian"),
-  new HumanMessage("hi!"),
-];
+import { promptTemplate } from "./llmModel/messages";
+import { logStatistics } from "./logger";
 
 const bootstrap = async () => {
-  const res = await llm.invoke(messages);
+  const promptValue = await promptTemplate.invoke({
+    language: "polish",
+    text: "hi",
+  });
+
+  const startTime = Date.now();
+
+  const res = await llm.invoke(promptValue);
+
+  const endTime = Date.now();
+  const responseTime = endTime - startTime;
 
   console.log(
     chalk.yellow("│"),
@@ -22,7 +28,15 @@ const bootstrap = async () => {
     chalk.yellow("│"),
   );
 
-  console.log(chalk.cyanBright.bold(res.content));
+  const cleanedContent = res.content
+    .toString()
+    .trim()
+    .replace(/^\s+/gm, "")
+    .replace(/\n\s*\n/g, "\n");
+
+  console.log(chalk.cyanBright.bold(cleanedContent));
+
+  logStatistics(res, responseTime);
 };
 
 bootstrap()
