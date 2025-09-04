@@ -5,44 +5,24 @@ dotenv.config({
 });
 
 import llm from "./llmModel";
-import { config } from "./config";
-import { promptTemplate } from "./llmModel/messages";
+import { prompt } from "./llmModel/messages";
 import { logStatistics } from "./logger";
+import { cleanText, printChatMessage } from "./helpers";
 
 const bootstrap = async () => {
-  const promptValue = await promptTemplate.invoke({
-    language: "polish",
-    text: "hi",
+  const chatPrompt = prompt.pipe(llm);
+
+  const res = await chatPrompt.invoke({
+    input_language: "english",
+    output_language: "polish",
+    input: "hello rooster",
   });
 
-  const startTime = Date.now();
+  printChatMessage("AI Response", cleanText(res.text), chalk.cyanBright.bold);
 
-  const res = await llm.invoke(promptValue);
-
-  const endTime = Date.now();
-  const responseTime = endTime - startTime;
-
-  console.log(
-    chalk.yellow("│"),
-    chalk.yellow.bold("AI Response:"),
-    chalk.yellow("│"),
-  );
-
-  const cleanedContent = res.content
-    .toString()
-    .trim()
-    .replace(/^\s+/gm, "")
-    .replace(/\n\s*\n/g, "\n");
-
-  console.log(chalk.cyanBright.bold(cleanedContent));
-
-  logStatistics(res, responseTime);
+  logStatistics(res);
 };
 
-bootstrap()
-  .then(() => {
-    console.log(chalk.green(`${config.MODEL} model successfully launched`));
-  })
-  .catch((e) => {
-    console.error(e);
-  });
+bootstrap().catch((e) => {
+  console.error(e);
+});

@@ -1,15 +1,22 @@
 import chalk from "chalk";
 import { type AIMessageChunk } from "@langchain/core/messages";
 
-export const logStatistics = (res: AIMessageChunk, responseTime: number) => {
+export const logStatistics = (res: AIMessageChunk) => {
   const labelColor = "magenta";
   const resColor = "blueBright";
+  const modelTime = res.response_metadata?.total_duration
+    ? `🎯 ${(res.response_metadata.total_duration / 1000000000).toFixed(1)}s`
+    : null;
+
+  const model = res.response_metadata?.model ?? "N/A";
 
   console.log(chalk.gray("─".repeat(50)));
   console.log(
     chalk[labelColor]("⏱️ Response time:"),
-    chalk[resColor].bold(`${responseTime}ms`),
+    chalk[resColor].bold(`${modelTime}`),
   );
+
+  console.log(chalk[labelColor]("⏱️ Model:"), chalk[resColor].bold(`${model}`));
 
   if (res.usage_metadata) {
     const { input_tokens, output_tokens, total_tokens } = res.usage_metadata;
