@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { render, Text, Box } from "ink";
 import TextInput from "ink-text-input";
+import Spinner from "ink-spinner";
 import llm from "./llmModel/index.js";
 import { prompt } from "./llmModel/messages.js";
 import { cleanText } from "./helpers/index.js";
@@ -80,6 +81,7 @@ const App = () => {
       </Text>
       <Box backgroundColor="gray">
         <Text>
+          {" "}
           Settings: {fromLang} ➔ {toLang}{" "}
         </Text>
       </Box>
@@ -92,7 +94,13 @@ const App = () => {
             {msg.text}
           </Text>
         ))}
-        {isLoading && <Text color="gray">Translating...</Text>}
+        {isLoading && (
+          <Box flexDirection="row" gap={1}>
+            <Text color={"yellowBright"}>
+              <Spinner /> Translating <Spinner />
+            </Text>
+          </Box>
+        )}
       </Box>
       <Box>
         <Text color="yellow">&gt; </Text>
