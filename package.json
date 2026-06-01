@@ -12,26 +12,46 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "check-updates": "ncu",
+    "up-deps": "ncu -u"
   },
   "dependencies": {
-    "@langchain/core": "^0.3.73",
+    "@langchain/core": "^0.3.76",
     "@langchain/ollama": "^0.2.4",
-    "chalk": "^5.6.0",
-    "dotenv": "^17.2.2"
+    "chalk": "^5.6.2",
+    "dotenv": "^17.2.2",
+    "ink": "^7.0.5",
+    "ink-text-input": "^6.0.0",
+    "react": "^19.2.7"
   },
   "devDependencies": {
-    "@eslint/js": "^9.34.0",
-    "@types/node": "^24.3.0",
-    "concurrently": "^8.2.2",
-    "eslint": "^9.34.0",
+    "@eslint/js": "^9.35.0",
+    "@types/node": "^24.12.4",
+    "@types/react": "^19.2.16",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.35.0",
     "eslint-config-prettier": "^10.1.8",
-    "globals": "^16.3.0",
+    "globals": "^16.4.0",
     "jiti": "^2.5.1",
-    "nodemon": "^3.0.1",
-    "prettier": "^3.0.0",
-    "typescript": "^5.5.3",
-    "typescript-eslint": "^8.42.0"
+    "nodemon": "^3.1.10",
+    "npm-check-updates": "^18.1.1",
+    "prettier": "^3.6.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.44.0"
   },
-  "private": true
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itolog/llm-start.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/itolog/llm-start/issues"
+  },
+  "homepage": "https://github.com/itolog/llm-start#readme"
 }

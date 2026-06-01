@@ -1,3 +1,6 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 interface Config {
   MODEL: string | undefined;
   TEMP: number | undefined;

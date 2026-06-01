@@ -4,10 +4,10 @@ dotenv.config({
   debug: false,
 });
 
-import llm from "./llmModel";
-import { prompt } from "./llmModel/messages";
-import { logStatistics } from "./logger";
-import { cleanText, printChatMessage } from "./helpers";
+import llm from "./llmModel/index.js";
+import { prompt } from "./llmModel/messages.js";
+import { logStatistics } from "./logger/index.js";
+import { cleanText, printChatMessage } from "./helpers/index.js";
 
 const bootstrap = async () => {
   const chatPrompt = prompt.pipe(llm);

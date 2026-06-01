@@ -1,12 +1,15 @@
 {
   "compilerOptions": {
-    "target": "es2016",
-    "module": "commonjs",
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
+    "target": "ES2020",
+    "module": "Node16",
+    "outDir": "./dist",
+    "rootDir": "./src",
     "strict": true,
+    "esModuleInterop": true,
     "skipLibCheck": true,
-    "outDir": "dist"
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node16",
+    "jsx": "react"
   },
-  "include": ["src"]
+  "include": ["src/**/*"]
 }
