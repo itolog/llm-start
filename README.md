@@ -25,7 +25,7 @@ A terminal-based chat translator built with **Ink** (React for CLI), **LangChain
    Create a `.env` file in the root directory:
    ```env
    MODEL=gemma4:e4b-mlx
-   TEMP=0.1
+    LLM_TEMP=0.1
    ```
 
 ## 🚀 Usage

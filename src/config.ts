@@ -1,12 +1,4 @@
-import dotenv from "dotenv";
-dotenv.config();
+import { parseConfig, Config } from "./config/validateEnv.js";
 
-interface Config {
-  MODEL: string | undefined;
-  TEMP: number | undefined;
-}
+export const config: Config = parseConfig();
 
-export const config: Config = {
-  MODEL: process.env.MODEL,
-  TEMP: Number(process.env.TEMP),
-};
