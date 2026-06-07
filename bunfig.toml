@@ -1,0 +1,25 @@
+# https://bun.com/docs/runtime/bunfig
+
+[install]
+# Explicit HTTPS registry URL — prevents MITM via DNS spoofing
+registry = "https://registry.npmjs.org/"
+
+# Save exact versions on `bun add` (1.2.3 instead of ^1.2.3)
+# Eliminates dependency drift through semver ranges
+exact = true
+
+# Allowlist of packages permitted to run lifecycle scripts
+# (postinstall, preinstall, etc.) — the primary supply-chain attack vector.
+# Empty array means no package runs scripts without explicit permission.
+# Add only verified packages that genuinely require postinstall.
+trustedDependencies = []
+
+[install.lockfile]
+# Always write the lockfile — guarantees reproducibility and integrity
+save = true
+# Native Bun binary lockfile format (tamper-evident)
+print = "bun"
+
+[run]
+# Execute scripts via the Bun runtime (no Node.js shim overhead)
+bun = true
