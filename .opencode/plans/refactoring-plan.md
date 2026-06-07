@@ -33,52 +33,47 @@ Discovered during review — addressed in the relevant sections below:
 
 ## 1. Configuration and Environment Validation
 
-**File:** `src/config.ts`
+**File:** `src/config.ts` → split into `src/config.ts` (re-export) + `src/config/validateEnv.ts`
 
 ### Problems
-- **[CRITICAL — new]** `process.env.TEMP` is a reserved OS variable (macOS/Linux/Windows store the temp directory path there). `dotenv.config()` does not override existing env vars. Result: `TEMP=0.1` in `.env` is silently ignored → `Number("/var/folders/…")` = `NaN` → `JSON.stringify({ temperature: NaN })` → `"temperature": null` sent to Ollama. This happens **on every macOS machine** with no error.
-- **[HIGH — new]** `config.MODEL = undefined` → `ChatOllama` silently uses `"llama3"` as the default model (SDK: `this.model = fields.model ?? "llama3"`). The app runs without errors but translates with the wrong model.
-- `Number(process.env.TEMP)` returns `NaN` when the variable is absent; `NaN` serialises to `null` in JSON.
-- No temperature range validation (valid range: 0..2).
+- **[CRITICAL — fixed]** `process.env.TEMP` is a reserved OS variable (macOS/Linux/Windows store the temp directory path there). `dotenv.config()` does not override existing env vars. Result: `TEMP=0.1` in `.env` is silently ignored → `Number("/var/folders/…")` = `NaN` → `JSON.stringify({ temperature: NaN })` → `"temperature": null` sent to Ollama. This happens **on every macOS machine** with no error.
+- **[HIGH — fixed]** `config.MODEL = undefined` → `ChatOllama` silently uses `"llama3"` as the default model (SDK: `this.model = fields.model ?? "llama3"`). The app runs without errors but translates with the wrong model.
+- `Number(process.env.TEMP)` returns `NaN` when the variable is absent; `NaN` serialises to `null` in JSON. — **fixed** by `Number.isFinite` check.
+- No temperature range validation (valid range: 0..2). — **fixed**.
 
 ### Solution
-- [ ] **Rename** `TEMP` → `LLM_TEMP` everywhere (`.env.example`, `config.ts`, `README.md`, tests). This eliminates the conflict with the OS variable.
-- [ ] Replace the ad-hoc `interface Config` with a manual `parseConfig()` that:
+- [x] **Rename** `TEMP` → `LLM_TEMP` everywhere (`.env.example`, `config.ts`, `README.md`, tests). `.env.example` and `README.md` updated; `CLAUDE.md` still mentions old name (see section 9).
+- [x] Replace the ad-hoc `interface Config` with a manual `parseConfig()` that:
   - throws a descriptive error with a hint when `MODEL` is empty or unset (no silent fallback to `"llama3"`);
   - parses `LLM_TEMP` via `Number.parseFloat` + `Number.isFinite` check;
   - applies default `LLM_TEMP = 0.1` when the variable is not set;
   - validates the temperature range `[0, 2]`;
   - reads optional `OLLAMA_BASE_URL` with default `http://localhost:11434`.
-- [ ] Extract to `src/config/validateEnv.ts`; keep `src/config.ts` as a thin re-export.
-- [ ] Add unit tests `src/config/validateEnv.test.ts`:
-  - valid env → correct config object;
-  - `MODEL` empty → error with hint text;
-  - non-numeric `LLM_TEMP` → error;
-  - `LLM_TEMP` out of range → error;
-  - `LLM_TEMP` not set → default `0.1`.
+- [x] Extract to `src/config/validateEnv.ts`; `src/config.ts` is a thin re-export.
+- [x] Add unit tests `src/config/validateEnv.test.ts` (6 cases): valid env, `MODEL` missing → error, non-numeric `LLM_TEMP` → error, `LLM_TEMP` out of range → error, `LLM_TEMP` not set → default `0.1`, `OLLAMA_BASE_URL` not set → default.
 
 ---
 
 ## 2. LLM Chain: Single Instance per Module
 
-**Files:** `src/llmModel/index.ts`, `src/index.tsx:53`
+**Files:** `src/llmModel/index.ts`, `src/hooks/useChat.ts`
 
 ### Problems
-- **[LOW — new]** `prompt.pipe(llm)` is recreated on every `handleSubmit` call. The composed chain is stateless — there is no reason to allocate it on every request.
-- `default export` makes it harder to name the chain explicitly.
+- **[LOW — fixed]** `prompt.pipe(llm)` is recreated on every `handleSubmit` call. The composed chain is stateless — there is no reason to allocate it on every request.
+- `default export` makes it harder to name the chain explicitly. — **fixed**: named exports only.
 
 ### Solution
-- [ ] In `src/llmModel/index.ts`:
-  - `export const llm = new ChatOllama(...)` (named export, remove `default`).
+- [x] In `src/llmModel/index.ts`:
+  - `export const llm = new ChatOllama({ model: config.MODEL, temperature: config.LLM_TEMP })` (named export, no `default`).
   - `export const translationChain = prompt.pipe(llm)` — created once at module level.
-- [ ] Import `translationChain` in `src/index.tsx` (before the UI split) and in `src/hooks/useChat.ts` (after); call `await translationChain.invoke({...}, { signal })`.
-- [ ] Add a unit test asserting that `translationChain` is a `Runnable` instance.
+- [x] `translationChain` is imported in `src/hooks/useChat.ts`; `await translationChain.invoke({...})` is called per submit.
+- [x] Unit test `src/llmModel/index.test.ts` asserts `translationChain instanceof Runnable` ✅.
 
 ---
 
 ## 3. UI Architecture: Extract Hooks and Components
 
-**File:** `src/index.tsx` (currently 113 lines, everything in one component)
+**File:** `src/index.tsx` (originally 113 lines, everything in one component)
 
 ### Target Structure
 ```
@@ -102,17 +97,17 @@ src/
 ```
 
 ### Steps
-- [ ] Create `src/types/message.ts` with type `Message` and factory `createMessage(role, text)` (generates `id: crypto.randomUUID()`).
-- [ ] Implement `parseCommand(input)` in `src/commands/parseCommand.ts`:
-  - returns discriminated union: `{ type: 'from'; lang: string } | { type: 'to'; lang: string } | { type: 'clear' } | { type: 'help' } | { type: 'exit' } | { type: 'translate'; text: string }`;
+- [x] Create `src/types/message.ts` with type `Message` and factory `createMessage(role, text)` (generates `id: crypto.randomUUID()`).
+- [x] Implement `parseCommand(input)` in `src/commands/parseCommand.ts`:
+  - returns discriminated union: `{ type: 'from'; lang: string } | { type: 'to'; lang: string } | { type: 'clear' } | { type: 'help' } | { type: 'exit' } | { type: 'translate'; text: string }` (+ extra `error` variant for empty args and unknown commands);
   - case-insensitive command matching;
   - **[MEDIUM — new]** extract argument via `slice(n)`, not `.replace(prefix, "")` — `.replace` finds the first match anywhere in the string (`/from /from russian` → `newLang = "/from russian"`);
-  - validates that `/from`/`/to` have a non-empty argument;
-  - unit tests: valid commands, empty argument, wrong prefix, casing, nested prefix (`/from /from russian`).
-- [ ] Extract `useLangSettings` (hook for `fromLang`/`toLang` pair + `setFrom`/`setTo`).
-- [ ] Extract `useChat` (hook: `messages`, `isLoading`, `submit(text)`, `clear()`; uses `useLangSettings`, `translationChain`, `AbortController`).
-- [ ] Split `App` into components listed above; `MessageList` takes `messages: Message[]`, `Message` takes `message: Message`.
-- [ ] **[MEDIUM — new]** Replace `key={i}` with `key={message.id}` — index keys cause incorrect React reconciliation when messages are removed.
+  - validates that `/from`/`/to` have a non-empty argument (returns `{ type: 'error', message }`);
+  - unit tests: 23 cases in `parseCommand.test.ts` covering valid commands, empty argument, wrong prefix, casing, nested prefix (`/from /from russian`).
+- [x] Extract `useLangSettings` (hook for `fromLang`/`toLang` pair + `setFrom`/`setTo`). Returns raw `useState` setters.
+- [x] Extract `useChat` (hook: `messages`, `isLoading`, `input`, `submit()`, `clear()`; takes options object `{ fromLang, toLang, setFromLang, setToLang }`; uses `translationChain`).
+- [x] Split `App` into components listed above; `MessageList` takes `{ messages, isLoading }`, `Message` (`MessageItem` in code) takes `msg: Message`. `index.tsx` is now 3 lines, `App.tsx` is the root component.
+- [x] **[MEDIUM — new]** Replace `key={i}` with `key={message.id}` — index keys cause incorrect React reconciliation when messages are removed.
 
 ---
 
@@ -223,9 +218,9 @@ src/
 ## Execution Order
 
 1. Pre-flight (section 0) — decide fate of `CLAUDE.md`.
-2. Config + validation (section 1) + tests — **highest priority**: rename `TEMP → LLM_TEMP`, add `parseConfig()`. Fixes two critical bugs and is the foundation for everything else.
-3. LLM chain (section 2) — move `translationChain` to module level.
-4. UI split (section 3) — large task; do after config/chain are stable.
+2. ~~Config + validation (section 1) + tests~~ — **DONE** (2026-06-07): `LLM_TEMP` renamed, `parseConfig()` added, 6 unit tests passing.
+3. ~~LLM chain (section 2)~~ — **DONE** (2026-06-07): `translationChain` at module level, named exports, `instanceof Runnable` test passing.
+4. ~~UI split (section 3)~~ — **DONE** (2026-06-07): types, hooks, 6 components, App.tsx split, 23 parseCommand tests passing.
 5. Reliability (section 4) — inside `useChat` once it exists.
 6. UX improvements (section 5) — after `useChat` is working.
 7. Helpers and retries (section 6) — parallel with section 4.
