@@ -2,8 +2,7 @@ import React, { useState } from "react";
 import { render, Text, Box } from "ink";
 import TextInput from "ink-text-input";
 import Spinner from "ink-spinner";
-import llm from "./llmModel/index.js";
-import { prompt } from "./llmModel/messages.js";
+import { translationChain } from "./llmModel/index.js";
 import { cleanText } from "./helpers/index.js";
 
 const App = () => {
@@ -50,8 +49,7 @@ const App = () => {
     setIsLoading(true);
 
     try {
-      const chatPrompt = prompt.pipe(llm);
-      const res = await chatPrompt.invoke({
+      const res = await translationChain.invoke({
         input_language: fromLang,
         output_language: toLang,
         input: userText,

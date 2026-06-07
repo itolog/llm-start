@@ -1,9 +1,10 @@
 import { ChatOllama } from "@langchain/ollama";
 import { config } from "../config.js";
+import { prompt } from "./messages.js";
 
-const llm = new ChatOllama({
+export const llm = new ChatOllama({
   model: config.MODEL,
-  temperature: config.TEMP,
+  temperature: config.LLM_TEMP,
 });
 
-export default llm;
+export const translationChain = prompt.pipe(llm);
