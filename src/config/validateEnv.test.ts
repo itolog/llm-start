@@ -38,7 +38,7 @@ describe("parseConfig", () => {
     process.env.MODEL = "test-model";
     process.env.LLM_TEMP = "2.5";
     expect(() => parseConfig()).toThrow(/LLM_TEMP must be between 0 and 2/);
-    
+
     process.env.LLM_TEMP = "-0.1";
     expect(() => parseConfig()).toThrow(/LLM_TEMP must be between 0 and 2/);
   });

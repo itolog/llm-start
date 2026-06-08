@@ -1,8 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { translationChain } from "../llmModel/index.js";
 import { cleanText } from "../helpers/index.js";
 import { Message, createMessage } from "../types/message.js";
 import { parseCommand } from "../commands/parseCommand.js";
+import { LLM_TIMEOUT_MS } from "../constants.js";
+import { withRetry } from "../helpers/retry.js";
 
 const WELCOME_MESSAGE: Message = createMessage(
   "Bot",
@@ -25,6 +27,14 @@ export function useChat({
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [isLoading, setIsLoading] = useState(false);
   const [input, setInput] = useState("");
+
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   const addMessage = useCallback((role: "You" | "Bot", text: string) => {
     setMessages((prev) => [...prev, createMessage(role, text)]);
@@ -66,25 +76,49 @@ export function useChat({
       case "exit":
         process.exit(0);
         break;
-      case "translate":
+      case "translate": {
         addMessage("You", userText);
         setIsLoading(true);
+        abortControllerRef.current?.abort();
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+
         try {
-          const res = await translationChain.invoke({
-            input_language: fromLang,
-            output_language: toLang,
-            input: userText,
-          });
+          const res = await withRetry(
+            () => {
+              const timeoutId = setTimeout(
+                () => controller.abort(),
+                LLM_TIMEOUT_MS,
+              );
+              return translationChain
+                .invoke(
+                  {
+                    input_language: fromLang,
+                    output_language: toLang,
+                    input: userText,
+                  },
+                  { signal: controller.signal },
+                )
+                .finally(() => clearTimeout(timeoutId));
+            },
+            { retries: 1, delayMs: 1000 },
+          );
           addMessage("Bot", cleanText(res.text));
         } catch (error) {
-          addMessage(
-            "Bot",
-            `Error: ${error instanceof Error ? error.message : String(error)}`,
-          );
+          if (error instanceof Error && error.name === "AbortError") {
+            addMessage("Bot", "Request cancelled");
+          } else {
+            addMessage(
+              "Bot",
+              `Error: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          }
         } finally {
           setIsLoading(false);
+          abortControllerRef.current = null;
         }
         break;
+      }
     }
   }, [
     input,

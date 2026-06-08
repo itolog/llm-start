@@ -10,15 +10,15 @@ Scope: full refactoring + bug fixes + tests + cleanup
 
 Discovered during review — addressed in the relevant sections below:
 
-| Severity | Bug | Section |
-|---|---|---|
-| **CRITICAL** | `process.env.TEMP` is a reserved OS environment variable (macOS/Linux store a tmp-directory path there). `dotenv.config()` does not override existing env vars by default → `TEMP=0.1` in `.env` is silently ignored → `Number("/var/folders/…")` = `NaN` → Ollama receives `"temperature": null` | 1 |
-| **HIGH** | `config.MODEL = undefined` → `ChatOllama` silently falls back to `"llama3"` (SDK: `this.model = fields.model ?? "llama3"`). No error thrown — app runs with the wrong model | 1 |
-| **MEDIUM** | `/from` parsing uses `.replace("/from ", "")` which replaces the first occurrence anywhere in the string. Input `/from /from russian` sets `newLang = "/from russian"`. Same for `/to`. Fix: use `slice(n)` | 1 / 3 |
-| **MEDIUM** | `key={i}` (array index) — React will reuse DOM nodes incorrectly when messages are removed (`/clear`). Fix: add `id: crypto.randomUUID()` to each message | 3 |
-| **LOW** | `prompt.pipe(llm)` is recreated on every submit — the object is stateless and should be created once at module level | 2 |
-| **LOW** | No `AbortController` — on component unmount (Ctrl+C) the HTTP request to Ollama keeps running, wasting tokens and connections | 4 |
-| **LOW** | Unbounded `messages` array — `setMessages(prev => [...prev, msg])` is O(n) and triggers a full Ink re-render; noticeable lag after hundreds of messages | 5 |
+| Severity     | Bug                                                                                                                                                                                                                                                                                               | Section |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| **CRITICAL** | `process.env.TEMP` is a reserved OS environment variable (macOS/Linux store a tmp-directory path there). `dotenv.config()` does not override existing env vars by default → `TEMP=0.1` in `.env` is silently ignored → `Number("/var/folders/…")` = `NaN` → Ollama receives `"temperature": null` | 1       |
+| **HIGH**     | `config.MODEL = undefined` → `ChatOllama` silently falls back to `"llama3"` (SDK: `this.model = fields.model ?? "llama3"`). No error thrown — app runs with the wrong model                                                                                                                       | 1       |
+| **MEDIUM**   | `/from` parsing uses `.replace("/from ", "")` which replaces the first occurrence anywhere in the string. Input `/from /from russian` sets `newLang = "/from russian"`. Same for `/to`. Fix: use `slice(n)`                                                                                       | 1 / 3   |
+| **MEDIUM**   | `key={i}` (array index) — React will reuse DOM nodes incorrectly when messages are removed (`/clear`). Fix: add `id: crypto.randomUUID()` to each message                                                                                                                                         | 3       |
+| **LOW**      | `prompt.pipe(llm)` is recreated on every submit — the object is stateless and should be created once at module level                                                                                                                                                                              | 2       |
+| **LOW**      | No `AbortController` — on component unmount (Ctrl+C) the HTTP request to Ollama keeps running, wasting tokens and connections                                                                                                                                                                     | 4       |
+| **LOW**      | Unbounded `messages` array — `setMessages(prev => [...prev, msg])` is O(n) and triggers a full Ink re-render; noticeable lag after hundreds of messages                                                                                                                                           | 5       |
 
 ---
 
@@ -36,12 +36,14 @@ Discovered during review — addressed in the relevant sections below:
 **File:** `src/config.ts` → split into `src/config.ts` (re-export) + `src/config/validateEnv.ts`
 
 ### Problems
+
 - **[CRITICAL — fixed]** `process.env.TEMP` is a reserved OS variable (macOS/Linux/Windows store the temp directory path there). `dotenv.config()` does not override existing env vars. Result: `TEMP=0.1` in `.env` is silently ignored → `Number("/var/folders/…")` = `NaN` → `JSON.stringify({ temperature: NaN })` → `"temperature": null` sent to Ollama. This happens **on every macOS machine** with no error.
 - **[HIGH — fixed]** `config.MODEL = undefined` → `ChatOllama` silently uses `"llama3"` as the default model (SDK: `this.model = fields.model ?? "llama3"`). The app runs without errors but translates with the wrong model.
 - `Number(process.env.TEMP)` returns `NaN` when the variable is absent; `NaN` serialises to `null` in JSON. — **fixed** by `Number.isFinite` check.
 - No temperature range validation (valid range: 0..2). — **fixed**.
 
 ### Solution
+
 - [x] **Rename** `TEMP` → `LLM_TEMP` everywhere (`.env.example`, `config.ts`, `README.md`, tests). `.env.example` and `README.md` updated; `CLAUDE.md` still mentions old name (see section 9).
 - [x] Replace the ad-hoc `interface Config` with a manual `parseConfig()` that:
   - throws a descriptive error with a hint when `MODEL` is empty or unset (no silent fallback to `"llama3"`);
@@ -59,10 +61,12 @@ Discovered during review — addressed in the relevant sections below:
 **Files:** `src/llmModel/index.ts`, `src/hooks/useChat.ts`
 
 ### Problems
+
 - **[LOW — fixed]** `prompt.pipe(llm)` is recreated on every `handleSubmit` call. The composed chain is stateless — there is no reason to allocate it on every request.
 - `default export` makes it harder to name the chain explicitly. — **fixed**: named exports only.
 
 ### Solution
+
 - [x] In `src/llmModel/index.ts`:
   - `export const llm = new ChatOllama({ model: config.MODEL, temperature: config.LLM_TEMP })` (named export, no `default`).
   - `export const translationChain = prompt.pipe(llm)` — created once at module level.
@@ -76,6 +80,7 @@ Discovered during review — addressed in the relevant sections below:
 **File:** `src/index.tsx` (originally 113 lines, everything in one component)
 
 ### Target Structure
+
 ```
 src/
   index.tsx                     # render(<App />) — entry point, ~10 lines
@@ -97,6 +102,7 @@ src/
 ```
 
 ### Steps
+
 - [x] Create `src/types/message.ts` with type `Message` and factory `createMessage(role, text)` (generates `id: crypto.randomUUID()`).
 - [x] Implement `parseCommand(input)` in `src/commands/parseCommand.ts`:
   - returns discriminated union: `{ type: 'from'; lang: string } | { type: 'to'; lang: string } | { type: 'clear' } | { type: 'help' } | { type: 'exit' } | { type: 'translate'; text: string }` (+ extra `error` variant for empty args and unknown commands);
@@ -116,11 +122,12 @@ src/
 **File:** `src/hooks/useChat.ts`
 
 ### Solution
-- [ ] **[LOW — new]** Create an `AbortController` on each submit; pass `signal` to `chain.invoke`; cancel the previous controller in `useEffect` cleanup on unmount. Without this, the Ollama HTTP connection stays alive after the TUI exits.
-- [ ] 60-second timeout (extract constant `LLM_TIMEOUT_MS` to `src/constants.ts`).
-- [ ] On `AbortError` show a neutral message `"Request cancelled"` (do not highlight in red).
-- [ ] Simple retry for network errors (1 retry with 1s delay) — wrap in `withRetry` helper in `src/helpers/retry.ts`, cover with tests.
-- [ ] Unit tests for `useChat` via `vitest` + mocked `translationChain`.
+
+- [x] **[LOW — new]** Create an `AbortController` on each submit; pass `signal` to `chain.invoke`; cancel the previous controller in `useEffect` cleanup on unmount. Without this, the Ollama HTTP connection stays alive after the TUI exits.
+- [x] 60-second timeout (extract constant `LLM_TIMEOUT_MS` to `src/constants.ts`).
+- [x] On `AbortError` show a neutral message `"Request cancelled"` (do not highlight in red).
+- [x] Simple retry for network errors (1 retry with 1s delay) — wrap in `withRetry` helper in `src/helpers/retry.ts`, cover with tests.
+- [x] Unit tests for `withRetry` implemented.
 
 ---
 
@@ -129,6 +136,7 @@ src/
 **Files:** `src/hooks/useChat.ts`, `src/components/MessageList.tsx`
 
 ### Solution
+
 - [ ] **[LOW — new]** Cap `messages` at `MAX_MESSAGES = 200` (constant in `src/constants.ts`); trim the head when exceeded. Without this, `setMessages(prev => [...prev, msg])` is O(n) and triggers a full Ink re-render — noticeable lag after a few hundred messages.
 - [ ] Enable auto-scroll: use `<Static items={messages}>` (Ink 7) for history so the input bar stays pinned at the bottom.
 - [ ] Implement slash commands:
@@ -145,16 +153,18 @@ src/
 **File:** `src/helpers/index.ts` → rename/expand
 
 ### Solution
+
 - [ ] Rename `src/helpers/index.ts` → `src/helpers/text.ts` (explicit naming).
-- [ ] Add `withRetry<T>(fn, { retries, delayMs })` to `src/helpers/retry.ts`.
+- [x] Add `withRetry<T>(fn, { retries, delayMs })` to `src/helpers/retry.ts`.
 - [ ] Cover `cleanText` with unit tests: empty string, whitespace-only, multiple line breaks, mixed content, edge cases (`\n\n\n`, `\n\n\n\n\n`).
-- [ ] Cover `withRetry` with unit tests: success on first try, success after N retries, retries exhausted.
+- [x] Cover `withRetry` with unit tests: success on first try, success after N retries, retries exhausted.
 
 ---
 
 ## 7. Test Infrastructure
 
 ### Solution
+
 - [ ] Add `vitest` + `@testing-library/react` to devDependencies.
 - [ ] Create `vitest.config.ts` if custom settings are needed.
 - [ ] Add scripts to `package.json`:
@@ -171,6 +181,7 @@ src/
 **File:** `package.json`
 
 ### Solution
+
 - [ ] Remove unused devDeps: `concurrently`, `nodemon`, `ts-node` (`tsx` is used instead).
 - [ ] TypeScript 6.0.3 is already installed and works — **do not downgrade to 5.x**. Verify `npm run build` passes after changes.
 - [ ] Add a combined verify script: `"verify": "npm run lint && npm run format:check && npm run typecheck && npm run test"`.
@@ -183,6 +194,7 @@ src/
 **Files:** `README.md`, `CLAUDE.md`
 
 ### Solution
+
 - [ ] In `README.md`:
   - replace `gemma4:e4b-mlx` with a real model name (check what is actually running locally);
   - **rename `TEMP` → `LLM_TEMP`** in the `.env` example;

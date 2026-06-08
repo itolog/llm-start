@@ -11,12 +11,14 @@ A terminal-based chat translator built with **Ink** (React for CLI), **LangChain
 ## 📦 Installation
 
 1. Clone the repository:
+
    ```bash
    git clone <repo-url>
    cd lang-app
    ```
 
 2. Install dependencies:
+
    ```bash
    npm install
    ```
@@ -31,6 +33,7 @@ A terminal-based chat translator built with **Ink** (React for CLI), **LangChain
 ## 🚀 Usage
 
 ### Start the Application
+
 Run the TUI using the built-in script:
 
 ```bash
@@ -38,7 +41,9 @@ npm start
 ```
 
 ### TUI Commands
+
 While the app is running, you can change translation settings via the input field:
+
 - `/from <lang>` — Change source language (e.g., `/from english`).
 - `/to <lang>` — Change target language (e.g., `/to polish`).
 

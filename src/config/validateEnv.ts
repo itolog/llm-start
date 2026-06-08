@@ -12,7 +12,7 @@ export function parseConfig(): Config {
   const model = process.env.MODEL;
   if (!model) {
     throw new Error(
-      "Environment variable MODEL is missing. Please specify the Ollama model name in your .env file (e.g., MODEL=gemma4:e4b-mlx)."
+      "Environment variable MODEL is missing. Please specify the Ollama model name in your .env file (e.g., MODEL=gemma4:e4b-mlx).",
     );
   }
 
@@ -22,7 +22,9 @@ export function parseConfig(): Config {
   if (rawTemp !== undefined) {
     const parsedTemp = Number.parseFloat(rawTemp);
     if (!Number.isFinite(parsedTemp)) {
-      throw new Error(`Invalid LLM_TEMP value: "${rawTemp}". It must be a valid number.`);
+      throw new Error(
+        `Invalid LLM_TEMP value: "${rawTemp}". It must be a valid number.`,
+      );
     }
     temp = parsedTemp;
   }
