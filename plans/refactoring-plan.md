@@ -234,6 +234,68 @@ src/
 
 ---
 
+## 12. Migrate Linting/Formatting to Oxc
+
+**Goal:** replace the ESLint + Prettier toolchain with [Oxc](https://oxc.rs/) (Rust-based, ~50–100× faster) to cut lint/format time and shrink devDeps.
+
+### Steps
+
+- [ ] Add `oxlint` to devDeps; create `.oxlintrc.json` (port the rules from `eslint.config.mts`: `dist/**` ignore, TS + React/React-Hooks correctness rules).
+- [ ] Replace `lint:code` (`eslint .`) → `oxlint`; replace `fix:lint` (`eslint . --fix`) → `oxlint --fix`.
+- [ ] **Formatter:** evaluate `oxfmt` (Oxc formatter). If still beta/unstable at migration time, **keep Prettier for one release** and migrate formatting separately — do not block the linter migration on it. Decide and document.
+- [ ] Verify React-specific lint coverage: Oxc has built-in `react` / `react-hooks` rules — confirm the `exhaustive-deps` check (used by `useChat` deps array) is enabled, since that is the one ESLint rule we actively rely on.
+- [ ] **Import sorting:** enable Oxc's import-sorting (oxlint `import` rules / `oxfmt`) and make it the single source of truth for import order. Define groups: builtin/external → path aliases (`@/*`, section 14) → relative — with alphabetical ordering within each group and a blank line between groups. Run `--fix` once to normalise the whole tree; then it is enforced by the pre-commit hook (section 13).
+- [ ] Update `lint` aggregate script and `verify`; remove `eslint`, `@eslint/js`, `eslint-config-prettier`, `typescript-eslint`, `globals` from devDeps once parity is confirmed.
+- [ ] Update `.prettierignore` / formatter ignores accordingly; keep `dist`, `node_modules`, `.claude` excluded.
+- [ ] Update `CLAUDE.md` (commands section + the ESLint `ignores` note) and `README.md`.
+
+### Risks / Notes
+
+- Oxc does **not** support custom ESLint plugins; confirm nothing beyond TS + React rules is in use (currently nothing is).
+- `oxlint` reads its own config — the existing `eslint.config.mts` will be removed, not reused.
+
+---
+
+## 13. Git Hooks via Husky
+
+**Goal:** enforce lint/format/tests automatically with [Husky](https://github.com/typicode/husky) so broken code never reaches the remote.
+
+### Steps
+
+- [ ] Add `husky` (+ `lint-staged`) to devDeps; run `bunx husky init` (creates `.husky/` and the `prepare` script).
+- [ ] **pre-commit:** run `lint-staged` — `oxlint --fix` + formatter on **staged files only** (fast, no full-repo scan). Add a `lint-staged` config to `package.json`.
+- [ ] **pre-push:** run the full gate — `npm run verify` (lint + typecheck + tests). Optionally `npm run build` to catch bundle breakage before pushing.
+- [ ] Ensure hooks invoke via `bun`/`bunx` consistently with the rest of the toolchain; keep them fast (pre-commit < ~2s, pre-push may be longer).
+- [ ] Document a bypass note (`git commit --no-verify`) for emergencies in `CLAUDE.md`.
+- [ ] Confirm `prepare` script runs on fresh `bun install` so hooks self-install for new clones.
+
+### Sequencing
+
+- Do **after** section 12 so the hooks call `oxlint` directly (avoid wiring ESLint into hooks only to rip it out).
+
+---
+
+## 14. Path Aliases
+
+**Goal:** replace deep relative imports (`../../utils/clean-text`, `../../types/message.type`) with a stable alias so moving files doesn't churn import paths and intent is clearer.
+
+### Steps
+
+- [ ] Add `paths` to `tsconfig.json`: `"@/*": ["./src/*"]` (alongside the existing `react-devtools-core` stub alias). `moduleResolution: "bundler"` already supports this without `baseUrl`.
+- [ ] Confirm each consumer resolves the alias:
+  - **bun** (run `bun src/index.tsx` + `bun build --compile`) — reads `tsconfig` `paths` natively. ✓ expected.
+  - **vitest** — does **not** read `tsconfig` `paths` by default. Add `vite-tsconfig-paths` (or a `resolve.alias` entry in a `vitest.config.ts`) so tests resolve `@/*`. **This is the main risk — verify test runs before rewriting imports.**
+- [ ] Decide alias granularity: a single `@/*` → `src/*` is simplest. (Optional finer aliases like `@components/*`, `@utils/*` add config for little gain at this size — default to the single root alias.)
+- [ ] Rewrite cross-module imports to the alias; keep **intra-module** imports relative (`./header.component`, `./header.type`) — a module referring to its own files should not go through the alias.
+- [ ] Run the Oxc import-sorter (section 12) so aliases land in their own group.
+- [ ] Update `CLAUDE.md` (note the alias + the "intra-module stays relative" rule) and `README.md`.
+
+### Sequencing
+
+- Do **before** section 12's import-sort pass (so sorting accounts for the alias group), but the `tsconfig`/vitest wiring can land anytime — it's independent of the Oxc swap.
+
+---
+
 ## Execution Order
 
 1. Pre-flight (section 0) — decide fate of `CLAUDE.md`.
@@ -247,3 +309,6 @@ src/
 9. Dependency cleanup (section 8) — near the end, once real usage is clear.
 10. Documentation (section 9) — after code is stable.
 11. Final check against section 11.
+12. Path aliases (section 14) — wire `tsconfig`/vitest, then rewrite cross-module imports.
+13. Migrate lint/format to Oxc (section 12) — toolchain swap once code is stable; runs the import-sort pass (accounts for the alias group).
+14. Husky git hooks (section 13) — last, after Oxc so hooks call `oxlint` directly.
