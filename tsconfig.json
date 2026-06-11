@@ -1,15 +1,18 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "Node16",
-    "outDir": "./dist",
+    "module": "Preserve",
+    "moduleResolution": "bundler",
     "rootDir": "./src",
+    "noEmit": true,
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "node16",
-    "jsx": "react"
+    "jsx": "react",
+    "paths": {
+      "react-devtools-core": ["./src/stubs/react-devtools-core.ts"]
+    }
   },
   "include": ["src/**/*"]
 }

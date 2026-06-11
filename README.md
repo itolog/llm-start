@@ -23,11 +23,13 @@ A terminal-based chat translator built with **Ink** (React for CLI), **LangChain
    npm install
    ```
 
-3. Set up environment variables:
-   Create a `.env` file in the root directory:
-   ```env
-   MODEL=gemma4:e4b-mlx
-    LLM_TEMP=0.1
+3. Configure the model:
+   Edit the defaults in `src/config/defaultConfig.ts`:
+   ```ts
+   export const defaultConfig: Config = {
+     MODEL: "gemma4:12b-mlx",
+     LLM_TEMP: 0.1,
+   };
    ```
 
 ## 🚀 Usage

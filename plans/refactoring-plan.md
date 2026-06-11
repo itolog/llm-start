@@ -19,6 +19,8 @@ Discovered during review — addressed in the relevant sections below:
 | **LOW**      | `prompt.pipe(llm)` is recreated on every submit — the object is stateless and should be created once at module level                                                                                                                                                                              | 2       |
 | **LOW**      | No `AbortController` — on component unmount (Ctrl+C) the HTTP request to Ollama keeps running, wasting tokens and connections                                                                                                                                                                     | 4       |
 | **LOW**      | Unbounded `messages` array — `setMessages(prev => [...prev, msg])` is O(n) and triggers a full Ink re-render; noticeable lag after hundreds of messages                                                                                                                                           | 5       |
+| **LOW**      | Model not available (deleted from Ollama or never pulled) — cryptic error instead of helpful message                                                                                                                                                                                              | 5       |
+| **LOW**      | `checkModelAvailable()` has no timeout — if Ollama hangs, startup blocks indefinitely                                                                                                                                                                                                             | 5       |
 
 ---
 
@@ -131,20 +133,25 @@ src/
 
 ---
 
-## 5. UX: History Limit and New Commands
+## 5. UX: History Limit, New Commands, and Model Unavailable Handling
 
-**Files:** `src/hooks/useChat.ts`, `src/components/MessageList.tsx`
+**Files:** `src/hooks/useChat.ts`, `src/components/MessageList.tsx`, `src/llmModel/index.ts`
+
+### Problems
+
+- **[LOW — fixed]** Unbounded `messages` array — `setMessages(prev => [...prev, msg])` is O(n) and triggers a full Ink re-render; noticeable lag after a few hundred messages.
+- **[LOW — new]** If the configured model was deleted from Ollama (or never pulled), the user gets a cryptic error instead of a helpful message.
+- **[LOW — new]** `checkModelAvailable()` had no timeout — if Ollama hangs, the app waits indefinitely on startup.
 
 ### Solution
 
-- [ ] **[LOW — new]** Cap `messages` at `MAX_MESSAGES = 200` (constant in `src/constants.ts`); trim the head when exceeded. Without this, `setMessages(prev => [...prev, msg])` is O(n) and triggers a full Ink re-render — noticeable lag after a few hundred messages.
-- [ ] Enable auto-scroll: use `<Static items={messages}>` (Ink 7) for history so the input bar stays pinned at the bottom.
-- [ ] Implement slash commands:
-  - `/help` — print the full command list;
-  - `/clear` — clear history;
-  - `/exit` (or `/quit`) — `process.exit(0)`.
-- [ ] Show placeholder `"Type to translate. /help for commands."` in `InputBar` while `input` is empty.
-- [ ] Visually disable `TextInput` during `isLoading` (via `isDisabled` prop in `ink-text-input@6`).
+- [x] **[LOW — new]** Cap `messages` at `MAX_MESSAGES = 200` (constant in `src/constants.ts`); trim the head when exceeded.
+- [x] ~~Enable auto-scroll via `<Static items={messages}>`~~ — **reverted**: `<Static>` is append-only and never re-renders/drops printed rows, which silently broke `/clear`, the model-unavailable replace, and `MAX_MESSAGES` head-trim. History is now a plain `.map()`; the terminal scrolls naturally.
+- [x] Show placeholder `"Type to translate. /help for commands."` in `InputBar` while `input` is empty.
+- [x] **[LOW — new]** `checkModelAvailable()` in `src/llmModel/index.ts` — queries Ollama's `GET /api/tags` (no inference) and checks `config.MODEL` is listed, with a 5-second timeout (`MODEL_CHECK_TIMEOUT_MS` in `constants.ts`).
+- [x] **[LOW — new]** On mount, `useChat` calls `checkModelAvailable()` and shows a clear error if the model is not found: `Error: Model "xxx" is not available. Please pull the model first using: ollama pull xxx`.
+- [x] `/quit` alias is already implemented in `parseCommand.ts` alongside `/exit`.
+- [ ] **WONTDO** `isDisabled` prop — `ink-text-input@6.0.0` type definitions do not expose this prop. Input is already effectively disabled via `if (!input.trim() || isLoading) return` in `submit()`.
 
 ---
 
@@ -233,8 +240,8 @@ src/
 2. ~~Config + validation (section 1) + tests~~ — **DONE** (2026-06-07): `LLM_TEMP` renamed, `parseConfig()` added, 6 unit tests passing.
 3. ~~LLM chain (section 2)~~ — **DONE** (2026-06-07): `translationChain` at module level, named exports, `instanceof Runnable` test passing.
 4. ~~UI split (section 3)~~ — **DONE** (2026-06-07): types, hooks, 6 components, App.tsx split, 23 parseCommand tests passing.
-5. Reliability (section 4) — inside `useChat` once it exists.
-6. UX improvements (section 5) — after `useChat` is working.
+5. ~~Reliability (section 4)~~ — **DONE** (2026-06-11): `AbortController`, 60s timeout, `withRetry` helper, unit tests.
+6. ~~UX improvements (section 5)~~ — **DONE** (2026-06-11): history cap, auto-scroll, placeholder, model unavailable check.
 7. Helpers and retries (section 6) — parallel with section 4.
 8. Test infrastructure (section 7) — set up early, grow alongside new modules.
 9. Dependency cleanup (section 8) — near the end, once real usage is clear.

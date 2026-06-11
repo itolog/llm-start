@@ -6,7 +6,7 @@
   "scripts": {
     "start": "bun src/index.tsx",
     "dev": "bun --watch src/index.tsx",
-    "build": "tsc",
+    "build": "bun build src/index.tsx --compile --minify --outfile dist/lang-app",
     "lint": "conc --timings -c \"auto\" \"bun:lint:*\"",
     "lint:code": "eslint .",
     "lint:types": "tsc --noEmit",
@@ -22,7 +22,6 @@
   "dependencies": {
     "@langchain/core": "1.1.48",
     "@langchain/ollama": "1.2.7",
-    "dotenv": "17.4.2",
     "ink": "7.0.5",
     "ink-spinner": "5.0.0",
     "ink-text-input": "6.0.0",
