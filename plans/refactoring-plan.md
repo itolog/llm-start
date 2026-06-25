@@ -240,14 +240,14 @@ src/
 
 ### Steps
 
-- [ ] Add `oxlint` to devDeps; create `.oxlintrc.json` (port the rules from `eslint.config.mts`: `dist/**` ignore, TS + React/React-Hooks correctness rules).
-- [ ] Replace `lint:code` (`eslint .`) → `oxlint`; replace `fix:lint` (`eslint . --fix`) → `oxlint --fix`.
-- [ ] **Formatter:** evaluate `oxfmt` (Oxc formatter). If still beta/unstable at migration time, **keep Prettier for one release** and migrate formatting separately — do not block the linter migration on it. Decide and document.
-- [ ] Verify React-specific lint coverage: Oxc has built-in `react` / `react-hooks` rules — confirm the `exhaustive-deps` check (used by `useChat` deps array) is enabled, since that is the one ESLint rule we actively rely on.
-- [ ] **Import sorting:** enable Oxc's import-sorting (oxlint `import` rules / `oxfmt`) and make it the single source of truth for import order. Define groups: builtin/external → path aliases (`@/*`, section 14) → relative — with alphabetical ordering within each group and a blank line between groups. Run `--fix` once to normalise the whole tree; then it is enforced by the pre-commit hook (section 13).
-- [ ] Update `lint` aggregate script and `verify`; remove `eslint`, `@eslint/js`, `eslint-config-prettier`, `typescript-eslint`, `globals` from devDeps once parity is confirmed.
-- [ ] Update `.prettierignore` / formatter ignores accordingly; keep `dist`, `node_modules`, `.claude` excluded.
-- [ ] Update `CLAUDE.md` (commands section + the ESLint `ignores` note) and `README.md`.
+- [x] Add `oxlint` to devDeps (`oxlint@1.71.0`); create `.oxlintrc.json` (ports `eslint.config.mts`: `ignorePatterns: ["dist/**"]`, `typescript`/`react`/`react-perf`/`unicorn`/`oxc` plugins, `correctness` category as error). Verified scanning works (~99 ms vs ESLint).
+- [x] Replace `lint:code` (`eslint .`) → `oxlint`; replace `fix:lint` (`eslint . --fix`) → `oxlint --fix`.
+- [x] **Formatter migrated to `oxfmt`** (2026-06-25): added `oxfmt@0.56.0` to devDeps; generated `.oxfmtrc.json` via `oxfmt --migrate=prettier` (keeps the Prettier style — 2-space indent, double quotes, semicolons, trailing commas, `printWidth: 80`); swapped `lint:format`/`format` scripts from `prettier` to `oxfmt`; removed `prettier` devDep + `.prettierrc` + `.prettierignore` (its ignore patterns now live in `.oxfmtrc.json` `ignorePatterns`). **Markdown excluded** (`**/*.md`) because oxfmt 0.56's markdown formatter throws `DataCloneError` (not threads-related) — re-enable once fixed upstream. `npm run verify` green.
+- [x] React-hooks coverage confirmed: `react-hooks/exhaustive-deps` explicitly enabled (`warn`) and verified firing on a missing-dep `useEffect`; `react-hooks/rules-of-hooks` enabled (`error`).
+- [ ] **WONTDO (now) — deferred to section 14:** import-sorting depends on the path-alias group (`@/*`) and on `oxfmt`. Since section 14 (aliases) and `oxfmt` are not in yet, the import-sort pass is deferred — do it together with section 14.
+- [x] Update `lint:code`/`fix:lint` scripts; removed `eslint`, `@eslint/js`, `eslint-config-prettier`, `typescript-eslint`, `globals` (and `jiti`, only needed to load the `.mts` ESLint config) from devDeps; deleted `eslint.config.mts`. `npm run verify` green.
+- [x] ~~`.prettierignore` already excludes `dist`, `node_modules`, `.claude`~~ — removed; patterns migrated into `.oxfmtrc.json` `ignorePatterns`.
+- [x] Update `CLAUDE.md` (commands section + the ESLint `ignores` note → Oxc note) and `README.md`.
 
 ### Risks / Notes
 

@@ -59,5 +59,5 @@ While the app is running, you can change translation settings via the input fiel
 ## 🛠 Development
 
 - **Run in watch mode**: `npm run dev`
-- **Linting**: `npm run lint`
-- **Formatting**: `npm run format`
+- **Linting**: `npm run lint` (powered by [Oxc](https://oxc.rs/) / `oxlint`)
+- **Formatting**: `npm run format` (powered by [Oxc](https://oxc.rs/) / `oxfmt`)

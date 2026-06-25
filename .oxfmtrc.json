@@ -8,5 +8,8 @@
   "singleQuote": false,
   "jsxSingleQuote": false,
   "bracketSameLine": true,
-  "arrowParens": "always"
+  "arrowParens": "always",
+  "printWidth": 80,
+  "sortPackageJson": false,
+  "ignorePatterns": ["dist", "node_modules", ".claude", "**/*.md"]
 }

@@ -22,13 +22,13 @@ npm run build         # Compile to a standalone binary (dist/lang-app) via bun -
 
 # Linting (run in parallel via concurrently)
 npm run lint          # Run all lint:* checks in parallel
-npm run lint:code     # ESLint check
+npm run lint:code     # oxlint check (Oxc, Rust-based linter)
 npm run lint:types    # TypeScript type check (tsc --noEmit)
-npm run lint:format   # Prettier format check
-npm run lint:fix      # ESLint auto-fix
+npm run lint:format   # oxfmt format check (Oxc formatter)
+npm run fix:lint      # oxlint auto-fix
 
 # Formatting
-npm run format        # Prettier format all files
+npm run format        # oxfmt format all files
 
 # Testing
 npm run test          # Run all tests once (vitest run)
@@ -112,6 +112,6 @@ src/
 - In-app commands (`/from`, `/to`, `/clear`, `/help`, `/exit`) are parsed by `parseCommand()` and never sent to Ollama.
 - `AbortController` is created per submit and passed to `chain.invoke`; timeout also calls `controller.abort()` to close the HTTP connection to Ollama.
 - `withRetry` does not retry `AbortError` — user cancellation is intentional and should not be retried.
-- `dist/` is excluded from ESLint (`ignores: ["dist/**"]` in `eslint.config.mts`).
+- **Linting uses [Oxc](https://oxc.rs/) (`oxlint`)** — config in `.oxlintrc.json` (`ignorePatterns: ["dist/**"]`, TS + React/React-Hooks correctness rules, `react-hooks/exhaustive-deps` enabled). ESLint was removed. **Formatting uses [`oxfmt`](https://oxc.rs/) (Oxc formatter)** — config in `.oxfmtrc.json` (migrated from `.prettierrc` via `oxfmt --migrate=prettier`, so the same style: 2-space indent, double quotes, semicolons, trailing commas, `printWidth: 80`). Prettier was removed. Markdown is excluded (`**/*.md` in `ignorePatterns`) because oxfmt 0.56's markdown formatter throws `DataCloneError` — re-enable once fixed upstream.
 - **Module-folder convention:** every component/hook/utility lives in its own kebab-case folder with an `index.ts` barrel (public API), an implementation file (`*.component.tsx` / `*.hook.ts` / `*.util.ts` / `*.service.ts`), and a `*.type.ts` for its types. Import the folder, not the inner files — this keeps each unit isolated and easy to test.
 - `npm run build` produces a **standalone binary** (`dist/lang-app`) via `bun build --compile --minify`. `react-devtools-core` (Ink's dev-only import) is aliased to an empty stub through `tsconfig` `paths` so it is not bundled.
