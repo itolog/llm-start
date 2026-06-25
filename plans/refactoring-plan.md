@@ -296,6 +296,48 @@ src/
 
 ---
 
+## 15. To Discuss (Not Decided Yet)
+
+> This section is for discussion before a decision is made. Do **not** implement
+> anything from it without explicit approval.
+
+### 15.1 Knip — unused code & dependency detection
+
+**What it is:** [Knip](https://knip.dev/) finds unused files, exports, types,
+dependencies, and npm scripts (dead-code + dependency audit).
+
+**Why it might help here:**
+
+- Closes the open questions from section 8 (Dependency Cleanup): whether `ts-node`
+  and `concurrently` are actually used. Scripts call the `conc` binary (a
+  `concurrently` alias), so it is used — Knip would confirm this formally; `ts-node`
+  is the questionable one.
+- The project follows the module-folder convention with `index.ts` barrels — Knip
+  can catch "dead" re-exports and unreachable modules.
+
+**Arguments against / risks:**
+
+- One more devDep + config in a toolchain we just deliberately trimmed
+  (ESLint→oxlint, Prettier→oxfmt).
+- `index.ts` barrels produce false positives on "unused exports" — requires tuning
+  `entry`/`project` (and possibly `ignore`).
+- For a project this size, a one-off manual dependency audit may be cheaper than a
+  permanent integration.
+
+**Draft adoption plan (only after approval):**
+
+1. `bun add -d knip`.
+2. `knip.json`: `entry` = `src/index.tsx` + `**/*.test.ts`; `project` = `src/**`.
+3. Script `"knip": "knip"` (wire into `verify` cautiously — run standalone first so
+   false positives don't break the gate).
+4. Triage findings (especially `ts-node`), remove confirmed dead weight, note it in
+   section 8.
+
+**Decision to make:** adopt Knip as a permanent toolchain tool **or** limit it to a
+one-off `bunx knip` audit and then drop it.
+
+---
+
 ## Execution Order
 
 1. Pre-flight (section 0) — decide fate of `CLAUDE.md`.
