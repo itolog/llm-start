@@ -1,7 +1,7 @@
 import { ChatOllama } from "@langchain/ollama";
-import { config } from "../config";
+import { config } from "@/config";
 import { prompt } from "./llm-prompt";
-import { MODEL_CHECK_TIMEOUT_MS, OLLAMA_BASE_URL } from "../constants";
+import { MODEL_CHECK_TIMEOUT_MS, OLLAMA_BASE_URL } from "@/constants";
 import { OllamaTag } from "./llm-model.type";
 
 export const llm = new ChatOllama({

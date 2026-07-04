@@ -75,6 +75,10 @@ with an `index.ts` barrel; consumers import the folder, not the inner files.
 - `src/utils/` — `clean-text`, `create-message`, `with-retry`.
 - `src/constants.ts` — shared constants.
 
+Imports use the **`@/*` → `src/*`** path alias for cross-module references
+(`import { useChat } from "@/hooks/use-chat"`); imports **within** a module stay
+relative (`./header.component`).
+
 See `CLAUDE.md` for the full module/naming convention.
 
 ## 🛠 Development

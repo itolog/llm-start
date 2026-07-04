@@ -7,6 +7,9 @@
 # production
 /dist
 
+# test coverage
+/coverage
+
 # misc
 .DS_Store
 *.pem

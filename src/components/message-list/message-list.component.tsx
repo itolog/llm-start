@@ -1,7 +1,7 @@
 import React from "react";
 import { Box } from "ink";
-import { MessageItem } from "../message";
-import { LoadingIndicator } from "../loading-indicator";
+import { MessageItem } from "@/components/message";
+import { LoadingIndicator } from "@/components/loading-indicator";
 import { MessageListProps } from "./message-list.type";
 
 // Plain map(), not <Static>: history is mutable (/clear, model-error replace,

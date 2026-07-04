@@ -1,11 +1,11 @@
 import React from "react";
 import { Box } from "ink";
-import { useLangSettings } from "../hooks/use-lang-settings";
-import { useChat } from "../hooks/use-chat";
-import { Header } from "../components/header";
-import { SettingsBar } from "../components/settings-bar";
-import { MessageList } from "../components/message-list";
-import { InputBar } from "../components/input-bar";
+import { useLangSettings } from "@/hooks/use-lang-settings";
+import { useChat } from "@/hooks/use-chat";
+import { Header } from "@/components/header";
+import { SettingsBar } from "@/components/settings-bar";
+import { MessageList } from "@/components/message-list";
+import { InputBar } from "@/components/input-bar";
 
 export const App = () => {
   const { fromLang, toLang, setFromLang, setToLang } = useLangSettings();

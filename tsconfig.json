@@ -11,6 +11,7 @@
     "forceConsistentCasingInFileNames": true,
     "jsx": "react",
     "paths": {
+      "@/*": ["./src/*"],
       "react-devtools-core": ["./src/stubs/react-devtools-core.ts"]
     }
   },

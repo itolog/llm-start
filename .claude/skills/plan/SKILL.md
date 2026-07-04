@@ -23,17 +23,17 @@ existing plan, preserve the format and follow the update rules.
 ```markdown
 # <Plan Title>
 
-> Прогресс: <done>/<total> · Создан: YYYY-MM-DD · Обновлён: YYYY-MM-DD
-> Ветка: `<branch>` · Скоуп: <one line>
+> Progress: <done>/<total> · Created: YYYY-MM-DD · Updated: YYYY-MM-DD
+> Branch: `<branch>` · Scope: <one line>
 
 ## A. <Section name>
 
-| ID | Задача | Статус | Дата |
+| ID | Task | Status | Date |
 | --- | --- | --- | --- |
 | A1 | <short imperative task> | ⬜ todo | — |
 | A2 | <short imperative task> | ✅ done | 2026-07-04 |
 
-### Заметки
+### Notes
 
 - **A1** — extra context, risks, links. Only when a task needs more than one line.
 
@@ -41,12 +41,12 @@ existing plan, preserve the format and follow the update rules.
 
 ...
 
-## Порядок выполнения
+## Execution order
 
 1. **B** — why first.
 2. **A** — why after.
 
-## История
+## History
 
 - 2026-07-04 — A2 done (9 test cases); plan reformatted.
 ```
@@ -89,6 +89,7 @@ Exactly one status per task, in the Статус column:
 
 ### Language
 
-Table headers and status words stay as in the template; task text and notes are
-written in Russian. Code identifiers, paths, and tool names stay in their
+Plan files are written in **English** — headers, task text, and notes. This is
+independent of the conversation language (a chat in Russian still produces an
+English plan file). Code identifiers, paths, and tool names stay in their
 original form.
