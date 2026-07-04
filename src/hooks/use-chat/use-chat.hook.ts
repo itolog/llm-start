@@ -1,13 +1,16 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
 import { useApp } from "ink";
-import { translationChain, checkModelAvailable } from "@/llm-model";
-import { cleanText } from "@/utils/clean-text";
-import { Message } from "@/types/message.type";
-import { createMessage } from "@/utils/create-message";
+
 import { parseCommand } from "@/commands/parse-command";
-import { LLM_TIMEOUT_MS, MAX_MESSAGES } from "@/constants";
-import { withRetry } from "@/utils/with-retry";
 import { config } from "@/config";
+import { LLM_TIMEOUT_MS, MAX_MESSAGES } from "@/constants";
+import { checkModelAvailable, translationChain } from "@/llm-model";
+import { Message } from "@/types/message.type";
+import { cleanText } from "@/utils/clean-text";
+import { createMessage } from "@/utils/create-message";
+import { withRetry } from "@/utils/with-retry";
+
 import { UseChatOptions } from "./use-chat.type";
 
 const WELCOME_MESSAGE: Message = createMessage(

@@ -1,5 +1,6 @@
 import React from "react";
-import { Text, Box } from "ink";
+
+import { Box, Text } from "ink";
 import Spinner from "ink-spinner";
 
 export const LoadingIndicator = () => (

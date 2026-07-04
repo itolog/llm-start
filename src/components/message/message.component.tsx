@@ -1,5 +1,7 @@
 import React from "react";
+
 import { Text } from "ink";
+
 import { MessageItemProps } from "./message.type";
 
 export const MessageItem = ({ msg }: MessageItemProps) => (

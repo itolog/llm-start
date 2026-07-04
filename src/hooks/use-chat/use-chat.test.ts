@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { UseChatOptions } from "./use-chat.type";
 
 // Shared mocks, hoisted so the vi.mock factories below can close over them.

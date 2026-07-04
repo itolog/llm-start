@@ -1,6 +1,6 @@
 # Lang-App TUI Refactoring Plan
 
-> Progress: 19/22 · Created: 2026-06-06 · Updated: 2026-07-04
+> Progress: 21/23 · Created: 2026-06-06 · Updated: 2026-07-04
 > Branch: `feature/tui` · Scope: remaining refactoring + tests + docs + tooling
 
 ## A. Tests
@@ -59,11 +59,13 @@
 
 | ID | Task | Status | Date |
 | --- | --- | --- | --- |
-| E1 | Enable the Oxc import-sorter and run it once | ⬜ todo | — |
+| E1 | Enable path-grouped import sorting via oxfmt `sortImports` | ✅ done | 2026-07-04 |
+| E2 | Wire the sort into `lefthook.yml` (pre-commit) | ✅ done | 2026-07-04 |
 
 ### Notes
 
-- **E1** — strictly **after** section D, so `@/*` lands in its own import group.
+- **E1** — final approach: **oxfmt `sortImports`** in `.oxfmtrc.json` (0.56 supports it — perfectionist-style), groups `builtin` → `external` → `internal` (`@/`) → relative, blank line between groups, alphabetical within. Applied automatically by `oxfmt --write`; ran once across the repo. This is the path-grouped, trivago-plugin-equivalent the user wanted — fully auto, no manual maintenance. `react` is its own group first, via a `customGroups` entry (`elementNamePattern` takes **glob** patterns — `"react"`, not regex `"^react$"`; that was the initial mistake). **Superseded** the earlier oxlint `sort-imports` attempt (removed from `.oxlintrc.json`): that rule sorts by member syntax not path and its declaration reordering is not auto-fixable (would mean perpetual manual fixes). oxlint's `import/order` (which does group by path) is **not implemented** in oxlint 1.71/1.72.
+- **E2** — the pre-commit `format` job (`oxfmt --write`) applies `sortImports` + re-stages — fully automatic. Also made pre-commit **sequential** (dropped `parallel: true`): `lint-fix` and `format` both mutate the same staged files, so they must not race; oxfmt runs last. Documented in `lefthook.yml` + `CLAUDE.md`.
 
 ## F. Git hooks
 
@@ -101,13 +103,12 @@
 ## Execution order
 
 1. **B1** — remove `ts-node`, verify build + tests.
-2. **E1** — import-sorter (aliases already in; sorter groups `@/*`).
-3. **G1** — decide Knip's fate.
+2. **G1** — decide Knip's fate.
 
 ## History
 
 - 2026-06-07 — config/validation, module-level LLM chain, UI split (components + hooks + parse-command).
 - 2026-06-11 — reliability (AbortController, timeouts, withRetry) + UX (history cap, model check, placeholder).
 - 2026-06-25 — formatter migrated to oxfmt; earlier — oxlint replaced ESLint.
-- 2026-07-04 — plan actualized (completed items removed); A1–A2 done; C1–C4 done (README rewritten); F1–F5 done (Husky → Lefthook, deps-audit); plan switched to table format (`plan` skill); casing conflict fixed (PascalCase → kebab dirs re-cased in git); A3–A4 done (hook tests via happy-dom + coverage); plan translated to English; D1–D4 done (`@/*` path alias, cross-module imports rewritten).
+- 2026-07-04 — plan actualized (completed items removed); A1–A2 done; C1–C4 done (README rewritten); F1–F5 done (Husky → Lefthook, deps-audit); plan switched to table format (`plan` skill); casing conflict fixed (PascalCase → kebab dirs re-cased in git); A3–A4 done (hook tests via happy-dom + coverage); plan translated to English; D1–D4 done (`@/*` path alias, cross-module imports rewritten); E1–E2 done: import sorting switched to **oxfmt `sortImports`** (path-grouped, auto on `oxfmt --write`) after the oxlint `sort-imports` approach proved manual-only; pre-commit made sequential to avoid the fix/format race.
 - Historical note: the env-validation from the original plan (§1: `dotenv`, `validateEnv`, `TEMP`→`LLM_TEMP`) was **superseded** — config is now the static `src/config/default-config.ts`, no `process.env` in `src/`.

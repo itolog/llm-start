@@ -1,7 +1,20 @@
 {
   "name": "lang-app",
   "version": "1.0.0",
+  "private": true,
   "description": "",
+  "keywords": [],
+  "homepage": "https://github.com/itolog/llm-start#readme",
+  "bugs": {
+    "url": "https://github.com/itolog/llm-start/issues"
+  },
+  "license": "ISC",
+  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itolog/llm-start.git"
+  },
+  "type": "module",
   "main": "src/index.tsx",
   "scripts": {
     "start": "bun src/index.tsx",
@@ -43,18 +56,5 @@
     "ts-node": "10.9.2",
     "typescript": "6.0.3",
     "vitest": "4.1.9"
-  },
-  "private": true,
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/itolog/llm-start.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
-  "bugs": {
-    "url": "https://github.com/itolog/llm-start/issues"
-  },
-  "homepage": "https://github.com/itolog/llm-start#readme"
+  }
 }

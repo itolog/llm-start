@@ -1,10 +1,14 @@
 pre-commit:
-  parallel: true
+  # Run sequentially, not in parallel: both jobs mutate the same staged files
+  # (with stage_fixed), so they must not race. oxfmt runs last so formatting +
+  # import sorting have the final say.
   jobs:
     - name: lint-fix
       glob: "*.{ts,tsx}"
       run: bunx oxlint --fix {staged_files}
       stage_fixed: true
+    # oxfmt --write also sorts imports into path groups (`sortImports` in
+    # .oxfmtrc.json) and re-stages the result — fully automatic, no manual step.
     - name: format
       glob: "*.{ts,tsx,js,jsx,json}"
       run: bunx oxfmt --write {staged_files}

@@ -1,6 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { translationChain } from "./llm-model.service";
 import { Runnable } from "@langchain/core/runnables";
+import { describe, expect, it } from "vitest";
+
+import { translationChain } from "./llm-model.service";
 
 describe("LLM Chain", () => {
   it("should be an instance of Runnable", () => {

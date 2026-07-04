@@ -10,7 +10,24 @@
   "bracketSameLine": true,
   "arrowParens": "always",
   "printWidth": 80,
-  "sortPackageJson": false,
+  "sortPackageJson": true,
+  "sortImports": {
+    "customGroups": [
+      {
+        "groupName": "react",
+        "elementNamePattern": ["react", "react-dom", "react-dom/*"]
+      }
+    ],
+    "groups": [
+      "react",
+      "builtin",
+      "external",
+      "internal",
+      ["parent", "sibling", "index"]
+    ],
+    "internalPattern": ["@/"],
+    "newlinesBetween": true
+  },
   "ignorePatterns": [
     "dist",
     "node_modules",
