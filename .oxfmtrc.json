@@ -11,5 +11,14 @@
   "arrowParens": "always",
   "printWidth": 80,
   "sortPackageJson": false,
-  "ignorePatterns": ["dist", "node_modules", ".claude", "**/*.md"]
+  "ignorePatterns": [
+    "dist",
+    "node_modules",
+    ".claude",
+    "**/*.md",
+    "*.yml",
+    "*.yaml",
+    "**/*.yml",
+    "**/*.yaml"
+  ]
 }

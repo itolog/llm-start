@@ -1,0 +1,19 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - name: lint-fix
+      glob: "*.{ts,tsx}"
+      run: bunx oxlint --fix {staged_files}
+      stage_fixed: true
+    - name: format
+      glob: "*.{ts,tsx,js,jsx,json}"
+      run: bunx oxfmt --write {staged_files}
+      stage_fixed: true
+
+pre-push:
+  parallel: true
+  jobs:
+    - name: verify
+      run: bun run verify
+    - name: deps-audit
+      run: bun audit
