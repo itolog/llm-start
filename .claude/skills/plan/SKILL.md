@@ -1,0 +1,94 @@
+---
+name: plan
+description: Create or update a persistent plan file using the project's standard table-based format (task IDs, status column, progress header). Use when the user asks to create/update a plan or mark tasks done, when finalizing a plan in plan mode, or when a code review produces a list of follow-up work worth persisting.
+---
+
+# Plan format skill
+
+Persist plans as markdown files following the format below. When creating a new
+plan, copy the template into the plan location (see below). When updating an
+existing plan, preserve the format and follow the update rules.
+
+## Location
+
+- **Default: `plans/`** (git-tracked — plans are committed with the repo).
+- **Override** per request: if the user names a target path/folder
+  (e.g. "put the plan in `docs/`"), use that instead.
+- One file per plan, kebab-case name describing the work
+  (`plans/refactoring-plan.md`, `plans/auth-rework.md`).
+- When updating, edit the existing file in place — do not create a duplicate.
+
+## File layout
+
+```markdown
+# <Plan Title>
+
+> Прогресс: <done>/<total> · Создан: YYYY-MM-DD · Обновлён: YYYY-MM-DD
+> Ветка: `<branch>` · Скоуп: <one line>
+
+## A. <Section name>
+
+| ID | Задача | Статус | Дата |
+| --- | --- | --- | --- |
+| A1 | <short imperative task> | ⬜ todo | — |
+| A2 | <short imperative task> | ✅ done | 2026-07-04 |
+
+### Заметки
+
+- **A1** — extra context, risks, links. Only when a task needs more than one line.
+
+## B. <Next section>
+
+...
+
+## Порядок выполнения
+
+1. **B** — why first.
+2. **A** — why after.
+
+## История
+
+- 2026-07-04 — A2 done (9 test cases); plan reformatted.
+```
+
+## Rules
+
+### IDs
+
+- Sections are lettered: `A`, `B`, `C`… Tasks are numbered within the section:
+  `A1`, `A2`, `B1`…
+- IDs are **stable forever**: never renumber, never reuse a dropped ID. New
+  tasks get the next free number in their section.
+- Reference IDs in commits and discussion (`test: cover use-chat (A3)`).
+
+### Statuses
+
+Exactly one status per task, in the Статус column:
+
+- `⬜ todo` — not started
+- `🔄 wip` — in progress
+- `✅ done` — completed and verified
+- `❌ wontdo` — decided against (add one-line reason in Заметки)
+- `💬 discuss` — needs a decision before work starts; do not implement
+
+### Task rows
+
+- Keep the Задача cell to one short line (imperative: "Удалить ts-node", not
+  "ts-node должен быть удалён"). Details, risks, and multi-line context go to
+  the section's `### Заметки` block, anchored by ID.
+- Дата = completion date for `✅`/`❌`, otherwise `—`.
+
+### Updating a plan
+
+1. Change the task's Статус and Дата — do not move or delete rows.
+2. Update the `Прогресс: <done>/<total>` counter and `Обновлён:` date in the
+   header (`✅` counts as done; `❌` reduces total).
+3. Append one line to `## История` (date — what changed).
+4. Superseded/obsolete tasks become `❌ wontdo` with a reason — never silently
+   deleted, so the plan stays an honest record.
+
+### Language
+
+Table headers and status words stay as in the template; task text and notes are
+written in Russian. Code identifiers, paths, and tool names stay in their
+original form.

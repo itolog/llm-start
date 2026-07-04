@@ -102,6 +102,16 @@ src/
     with-retry/                      # { with-retry.util.ts, with-retry.type.ts (RetryOptions), with-retry.test.ts, index.ts }
 ```
 
+## Planning
+
+Whenever you produce a plan of work — a direct "make a plan" request, finalizing
+a plan in **plan mode**, or a **code review** that yields follow-up tasks worth
+tracking — persist it as a file and follow the **`plan` skill**
+(`.claude/skills/plan/SKILL.md`) for the format (task IDs, status column,
+progress header, update rules). Default location is **`plans/`** (git-tracked);
+honor an explicit override if the user names a different path. Update the
+existing plan file in place rather than creating a duplicate.
+
 ## Key Decisions
 
 - **`bun`** is used to run the app (`bun src/index.tsx`) and as the package manager.

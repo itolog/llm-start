@@ -1,143 +1,115 @@
 # Lang-App TUI Refactoring Plan
 
-Date: 2026-06-06 · actualized 2026-07-04 (completed items removed)
-Branch: `feature/tui`
-Scope: remaining refactoring + tests + docs + tooling
+> Прогресс: 13/22 · Создан: 2026-06-06 · Обновлён: 2026-07-04
+> Ветка: `feature/tui` · Скоуп: оставшийся рефакторинг + тесты + docs + тулинг
 
----
+## A. Тесты
 
-## Completed (kept as a changelog, not open work)
+| ID | Задача | Статус | Дата |
+| --- | --- | --- | --- |
+| A1 | Покрыть `clean-text` unit-тестами | ✅ done | 2026-07-04 |
+| A2 | Покрыть `create-message` unit-тестами | ✅ done | 2026-07-04 |
+| A3 | Тесты хуков `use-chat` / `use-lang-settings` через мокнутый chain | ⬜ todo | — |
+| A4 | Добавить скрипт `test:coverage` (`vitest run --coverage`) | ⬜ todo | — |
 
-These sections are fully done and verified against the codebase — removed from
-the actionable list:
+### Заметки
 
-- **Config + LLM chain** — the original env-validation design (§1: `dotenv`,
-  `.env`, `validateEnv`, `parseConfig`, `TEMP`→`LLM_TEMP`) was **superseded**: the
-  app now uses a static `src/config/default-config.ts` (`MODEL`, `LLM_TEMP`) with
-  a `Config` type. No `process.env` in `src/`. The `translationChain` is created
-  once at module level in `llm-model/llm-model.service.ts` (named exports, no
-  `default`) — §2 done.
-- **UI split (§3)** — `index.tsx` → `app/` + `components/` (header, settings-bar,
-  message-list, message, loading-indicator, input-bar) + hooks (`use-chat`,
-  `use-lang-settings`) + `commands/parse-command` + `types/message.type.ts`.
-  Module-folder / kebab-case convention applied throughout. Message keys use
-  `id: crypto.randomUUID()` (via `create-message`); `parseCommand` uses `slice(n)`.
-- **Reliability (§4)** — `AbortController` per submit, 60s timeout
-  (`LLM_TIMEOUT_MS`), `AbortError` → "Request cancelled", `withRetry` helper
-  (`utils/with-retry`) with tests.
-- **UX (§5)** — `MAX_MESSAGES` cap, plain `.map()` history (`<Static>` reverted),
-  input placeholder, `checkModelAvailable()` via `GET /api/tags` with 5s timeout,
-  model-unavailable error message, `/quit` alias.
-- **Oxc migration (§12)** — `oxlint` + `oxfmt` in, ESLint + Prettier removed,
-  configs `.oxlintrc.json` / `.oxfmtrc.json`, markdown excluded (oxfmt 0.56
-  `DataCloneError`). Import-sort pass deferred to §14 (below).
-- **Test infra baseline (§7 partial)** — `vitest` + `@testing-library/react` in
-  devDeps, `vitest.config.ts`, `test` / `test:watch` scripts. Typecheck exists as
-  `lint:types` (`tsc --noEmit`).
+- **A1** — 9 кейсов: пустая строка, whitespace-only, `\n{3,}`-схлопывание, mixed content.
+- **A2** — 5 кейсов: проброс role/text, уникальный `id` на 100 вызовах.
+- **A3** — кейсы: submit, error, cancel, clear; `/from`, `/to`. Риск: таймеры → `vi.useFakeTimers()`.
+- **A4** — цель покрытия `clean-text` / `parse-command` / `with-retry` — 100% строк.
 
----
+## B. Зависимости
 
-## Open Work
+| ID | Задача | Статус | Дата |
+| --- | --- | --- | --- |
+| B1 | Удалить `ts-node` из devDeps | ⬜ todo | — |
+| B2 | Удалить `nodemon` | ✅ done | 2026-07-04 |
+| B3 | Оставить `concurrently` (используется как `conc`) | ✅ done | 2026-07-04 |
 
-### A. Tests — fill the gaps (was §6 / §7)
+### Заметки
 
-- [x] Cover `clean-text` (`utils/clean-text`) with unit tests: empty string,
-  whitespace-only, multiple line breaks, mixed content, edge cases (`\n\n\n`,
-  `\n\n\n\n\n`). **DONE (2026-07-04)** — 9 cases.
-- [x] Cover `create-message` (`utils/create-message`): role/text passthrough,
-  unique `id` per call. **DONE (2026-07-04)** — 5 cases.
-- [ ] Hook tests via mocked chain: `use-chat` (submit, error, cancel, clear) and
-  `use-lang-settings` (`/from`, `/to` updates).
-- [ ] Add `"test:coverage": "vitest run --coverage"` script. Target for
-  `clean-text` / `parse-command` / `with-retry` — 100% lines.
+- **B1** — ничего на него не ссылается (`bun` гоняет `.tsx` сам). После удаления прогнать `npm run verify` + `npm run build`.
+- **B2** — уже отсутствовал, проверено 2026-07-04.
 
-### B. Dependency cleanup (was §8)
+## C. Документация
 
-- [ ] Remove `ts-node` from devDeps — nothing references it (`bun` runs `.tsx`
-  directly). Verify `npm run verify` + `npm run build` after removal.
-- [x] ~~Remove `nodemon`~~ — already gone.
-- [x] ~~Keep `concurrently`~~ — used as `conc` in `lint` / `verify` scripts.
+| ID | Задача | Статус | Дата |
+| --- | --- | --- | --- |
+| C1 | README: пути конфига + реальная модель | ✅ done | 2026-07-04 |
+| C2 | README: секция Architecture под реальную структуру | ✅ done | 2026-07-04 |
+| C3 | README: полная секция Commands + test/build | ✅ done | 2026-07-04 |
+| C4 | `CLAUDE.md` закоммичен и соответствует структуре | ✅ done | 2026-07-04 |
 
-### C. Documentation (was §9) — **DONE (2026-07-04)**
+## D. Path aliases
 
-`README.md` rewritten to match reality:
+| ID | Задача | Статус | Дата |
+| --- | --- | --- | --- |
+| D1 | Добавить `"@/*": ["./src/*"]` в `tsconfig.json` `paths` | ⬜ todo | — |
+| D2 | Подключить резолв алиаса в vitest | ⬜ todo | — |
+| D3 | Переписать cross-module импорты на `@/…` | ⬜ todo | — |
+| D4 | Обновить `CLAUDE.md` + `README.md` (правило алиасов) | ⬜ todo | — |
 
-- [x] Config path fixed → `src/config/default-config.ts`; model default
-  `gemma4:12b-mlx`; `constants.ts` noted for endpoint/timeouts.
-- [x] Architecture section paths corrected (`src/app/`, `src/llm-model/`,
-  `src/utils/`, module-folder convention), Bun documented as runtime/PM/bundler.
-- [x] Full "Commands" section added: `/from`, `/to`, `/clear`, `/help`,
-  `/exit` (`/quit`); test + build commands documented.
-- [x] `CLAUDE.md` — committed and already matches the current structure.
+### Заметки
 
-### D. Path aliases (was §14)
+- **D2** — vitest **не** читает `tsconfig` `paths`: нужен `vite-tsconfig-paths` или `resolve.alias` в `vitest.config.ts`. **Главный риск — проверить тесты до переписывания импортов.**
+- **D3** — intra-module импорты остаются относительными (`./header.component`).
 
-`tsconfig.json` currently has only the `react-devtools-core` stub alias — no
-`@/*`.
+## E. Import-sort (Oxc)
 
-- [ ] Add `"@/*": ["./src/*"]` to `tsconfig.json` `paths`.
-- [ ] Wire vitest to resolve it (vitest does **not** read `tsconfig` `paths`): add
-  `vite-tsconfig-paths` or a `resolve.alias` in `vitest.config.ts`. **Verify tests
-  pass before rewriting any imports — main risk.**
-- [ ] Rewrite **cross-module** imports to `@/…`; keep **intra-module** imports
-  relative (`./header.component`, `./header.type`).
-- [ ] Update `CLAUDE.md` (alias + "intra-module stays relative" rule) and `README.md`.
+| ID | Задача | Статус | Дата |
+| --- | --- | --- | --- |
+| E1 | Включить импорт-сортер Oxc и прогнать один раз | ⬜ todo | — |
 
-### E. Oxc import-sort (deferred from §12)
+### Заметки
 
-- [ ] Enable the Oxc import-sorter and run it once, **after** section D so the
-  `@/*` alias lands in its own import group.
+- **E1** — строго **после** секции D, чтобы `@/*` попал в свою группу импортов.
 
-### F. Git hooks (was §13) — **DONE (2026-07-04)**
+## F. Git hooks
 
-Initially done with Husky + lint-staged, then **migrated to [Lefthook](https://lefthook.dev/)**
-(single Go binary — consolidates husky + lint-staged into one tool + `lefthook.yml`,
-matches the Oxc/bun native-binary toolchain; runs jobs in parallel).
+| ID | Задача | Статус | Дата |
+| --- | --- | --- | --- |
+| F1 | `lefthook` в devDeps + `prepare: "lefthook install"` | ✅ done | 2026-07-04 |
+| F2 | pre-commit: `oxlint --fix` + `oxfmt --write` по staged, `stage_fixed` | ✅ done | 2026-07-04 |
+| F3 | pre-push: `bun run verify` | ✅ done | 2026-07-04 |
+| F4 | pre-push: `deps-audit` (`bun audit`), параллельно с verify | ✅ done | 2026-07-04 |
+| F5 | Удалить `husky` + `lint-staged` (миграция на Lefthook) | ✅ done | 2026-07-04 |
 
-- [x] `lefthook@2` in devDeps; `prepare: "lefthook install"` self-installs hooks on
-  `bun install` (removed the old husky `core.hooksPath=.husky/_` first).
-- [x] **pre-commit** (`parallel: true`): `oxlint --fix` (glob `*.{ts,tsx}`) +
-  `oxfmt --write` (glob `*.{ts,tsx,js,jsx,json}`) on `{staged_files}`,
-  `stage_fixed: true` re-stages fixes. Verified end-to-end.
-- [x] **pre-push:** `bun run verify` (lint + tests).
-- [x] `bun test` intentionally avoided (incompatible runtime — CLAUDE.md mandates
-  vitest); `--no-verify` bypass documented in `CLAUDE.md`.
-- [x] Removed `husky` + `lint-staged`, deleted `.husky/`, dropped the `lint-staged`
-  config from `package.json`.
+### Заметки
 
----
+- **F5** — сначала сделано на Husky + lint-staged, затем консолидировано в Lefthook (один Go-бинарник, `lefthook.yml`, параллельные job'ы — в духе Oxc/bun-тулчейна). Снят старый `core.hooksPath=.husky/_`.
+- **F2** — `bun test` в хуках намеренно не используется (несовместимый рантайм, CLAUDE.md требует vitest). Bypass: `--no-verify`.
+- Попутный фикс: oxfmt 0.56 крашится `DataCloneError` на YAML → `*.yml`/`**/*.yml` добавлены в `ignorePatterns` `.oxfmtrc.json` (корневой `*.yml` обязателен — `**/*.yml` не матчит корень).
 
-## To Discuss (not decided)
+## G. На обсуждение
 
-> Do not implement without explicit approval.
+| ID | Задача | Статус | Дата |
+| --- | --- | --- | --- |
+| G1 | Knip: постоянный тул vs разовый `bunx knip`-аудит | 💬 discuss | — |
 
-### Knip — unused code & dependency detection
+### Заметки
 
-[Knip](https://knip.dev/) finds unused files/exports/deps. Would formally confirm
-the `ts-node` removal (section B) and catch dead barrel re-exports. Against: one
-more devDep in a toolchain we just trimmed; `index.ts` barrels cause
-false-positive "unused export" noise; a one-off `bunx knip` audit may be cheaper
-than a permanent integration.
+- **G1** — [Knip](https://knip.dev/) найдёт мёртвые exports/deps (подтвердил бы B1). Против: ещё одна devDep в только что урезанном тулчейне; `index.ts`-баррелы дают false positives. Не внедрять без явного решения.
 
-**Decision to make:** permanent tool vs. one-off `bunx knip` audit, then drop.
+## Definition of Done
 
----
+- `npm run lint` — 0 ошибок (code + types + format).
+- `npm test` — зелёный; покрытие `clean-text` / `parse-command` / `with-retry` ≥ 90%.
+- `npm run build` — собирает `dist/lang-app`.
+- `ts-node` удалён, `bun.lock` обновлён.
 
-## Definition of Done (remaining)
+## Порядок выполнения
 
-- [ ] `npm run lint` — 0 errors (`lint:code` + `lint:types` + `lint:format`).
-- [ ] `npm test` — green; `clean-text` / `parse-command` / `with-retry` coverage ≥ 90%.
-- [ ] `npm run build` — compiles to `dist/lang-app`.
-- [ ] `README.md` reflects actual paths, model, commands, and structure.
-- [ ] `ts-node` removed, `bun.lock` updated.
+1. **A3–A4** — тесты хуков + coverage.
+2. **B1** — удалить `ts-node`, проверить verify + build.
+3. **D** — алиасы: tsconfig + vitest, затем импорты.
+4. **E1** — импорт-сортер сразу после алиасов.
+5. **G1** — решить судьбу Knip.
 
----
+## История
 
-## Execution Order
-
-1. **C. Documentation** — cheapest, highest-value; README is actively wrong.
-2. **A. Tests** — fill `clean-text` / `create-message` / hooks gaps.
-3. **B. Dependency cleanup** — remove `ts-node`, verify.
-4. **D. Path aliases** — wire `tsconfig` + vitest, then rewrite cross-module imports.
-5. **E. Import-sort** — right after aliases so grouping accounts for `@/*`.
-6. **F. Husky** — last, so hooks call the finalized `oxlint`/`oxfmt`.
+- 2026-06-07 — конфиг/валидация, LLM chain на уровне модуля, UI split (компоненты + хуки + parse-command).
+- 2026-06-11 — reliability (AbortController, таймауты, withRetry) + UX (history cap, model check, placeholder).
+- 2026-06-25 — миграция форматтера на oxfmt; ранее — oxlint вместо ESLint.
+- 2026-07-04 — план актуализирован (выполненное убрано); A1–A2 done; C1–C4 done (README переписан); F1–F5 done (Husky → Lefthook, deps-audit); план переведён на табличный формат (skill `plan`).
+- Историческая заметка: env-валидация из исходного плана (§1: `dotenv`, `validateEnv`, `TEMP`→`LLM_TEMP`) **superseded** — конфиг теперь статический `src/config/default-config.ts`, `process.env` в `src/` нет.
