@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useApp } from "ink";
+import { match } from "ts-pattern";
 
 import { parseCommand } from "@/commands/parse-command";
 import { config } from "@/config";
@@ -79,39 +80,33 @@ export function useChat({
 
     setInput("");
 
-    switch (command.type) {
-      case "error":
-        addMessage("Bot", command.message);
-        break;
-      case "from":
-        setFromLang(command.lang);
-        addMessage("Bot", `Source language changed to: ${command.lang}`);
-        break;
-      case "to":
-        setToLang(command.lang);
-        addMessage("Bot", `Target language changed to: ${command.lang}`);
-        break;
-      case "clear":
-        clear();
-        break;
-      case "help":
+    await match(command)
+      .with({ type: "error" }, ({ message }) => addMessage("Bot", message))
+      .with({ type: "from" }, ({ lang }) => {
+        setFromLang(lang);
+        addMessage("Bot", `Source language changed to: ${lang}`);
+      })
+      .with({ type: "to" }, ({ lang }) => {
+        setToLang(lang);
+        addMessage("Bot", `Target language changed to: ${lang}`);
+      })
+      .with({ type: "clear" }, () => clear())
+      .with({ type: "help" }, () =>
         addMessage(
           "Bot",
           "Commands:\n/from <lang> — set source language\n/to <lang> — set target language\n/clear — clear history\n/help — show this help\n/exit (or /quit) — quit",
-        );
-        break;
-      case "exit":
-        exit();
-        break;
-      case "translate": {
+        ),
+      )
+      .with({ type: "exit" }, () => exit())
+      .with({ type: "translate" }, async ({ text }) => {
         if (modelAvailableRef.current === false) {
           addMessage(
             "Bot",
             `Model "${config.MODEL}" is not available. Please pull it first: ollama pull ${config.MODEL}`,
           );
-          break;
+          return;
         }
-        addMessage("You", userText);
+        addMessage("You", text);
         setIsLoading(true);
         abortControllerRef.current?.abort();
         const controller = new AbortController();
@@ -129,7 +124,7 @@ export function useChat({
                   {
                     input_language: fromLang,
                     output_language: toLang,
-                    input: userText,
+                    input: text,
                   },
                   { signal: controller.signal },
                 )
@@ -150,9 +145,8 @@ export function useChat({
           setIsLoading(false);
           abortControllerRef.current = null;
         }
-        break;
-      }
-    }
+      })
+      .exhaustive();
   }, [
     input,
     isLoading,
