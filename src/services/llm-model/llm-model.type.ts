@@ -10,6 +10,11 @@ export interface TranslateParams {
   // External signal (component lifecycle / user cancel); combined with the
   // internal request timeout inside the service.
   signal?: AbortSignal;
+  // Streamed progress: called with the cleaned text accumulated so far on each
+  // token, so the caller can render the translation as it fills in. The value
+  // replaces (not appends) the previous partial, so a mid-stream retry that
+  // re-streams from scratch resets the displayed text cleanly.
+  onToken?: (partial: string) => void;
 }
 
 // Per-translation metrics surfaced to the stats bar (C6).

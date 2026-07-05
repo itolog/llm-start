@@ -4,11 +4,11 @@ import { config } from "@/config";
 
 // Hoisted so the vi.mock factory below can close over it. Replacing the chain
 // keeps the whole test off Ollama — the service constructor builds its chain
-// from `prompt.pipe(llm)`, so stubbing `prompt.pipe` hands it our fake invoke.
-const { mockInvoke } = vi.hoisted(() => ({ mockInvoke: vi.fn() }));
+// from `prompt.pipe(llm)`, so stubbing `prompt.pipe` hands it our fake stream.
+const { mockStream } = vi.hoisted(() => ({ mockStream: vi.fn() }));
 
 vi.mock("./llm-prompt", () => ({
-  prompt: { pipe: () => ({ invoke: mockInvoke }) },
+  prompt: { pipe: () => ({ stream: mockStream }) },
 }));
 
 import { llmModelService } from "./llm-model.service";
@@ -16,10 +16,36 @@ import { llmModelService } from "./llm-model.service";
 const abortError = () =>
   Object.assign(new Error("aborted"), { name: "AbortError" });
 
-// A chain that never resolves on its own — it only rejects once the invoke's
-// signal fires, mirroring how LangChain aborts an in-flight request.
-const invokeRejectingOnAbort = () =>
-  mockInvoke.mockImplementation(
+// Minimal AIMessageChunk stand-in: exposes `.text`, optional token metadata,
+// and `.concat` (Ollama emits usage counts on the final chunk).
+type ChunkMeta = {
+  usage_metadata?: Record<string, number>;
+  response_metadata?: Record<string, number>;
+};
+const makeChunk = (text: string, meta: ChunkMeta = {}) => ({
+  text,
+  ...meta,
+  concat(next: { text: string } & ChunkMeta) {
+    return makeChunk(this.text + next.text, {
+      usage_metadata: next.usage_metadata ?? this.usage_metadata,
+      response_metadata: next.response_metadata ?? this.response_metadata,
+    });
+  },
+});
+
+async function* streamOf(...chunks: ReturnType<typeof makeChunk>[]) {
+  for (const chunk of chunks) yield chunk;
+}
+
+// chain.stream(...) resolves to an async iterable; return a fresh one per call
+// so a retry re-iterates instead of draining an exhausted generator.
+const stubStream = (...chunks: ReturnType<typeof makeChunk>[]) =>
+  mockStream.mockImplementation(async () => streamOf(...chunks));
+
+// A stream that never yields on its own — it only rejects once the signal
+// fires, mirroring how LangChain aborts an in-flight request.
+const streamRejectingOnAbort = () =>
+  mockStream.mockImplementation(
     (_input, opts: { signal?: AbortSignal }) =>
       new Promise((_resolve, reject) => {
         const signal = opts.signal;
@@ -37,7 +63,7 @@ const params = {
 };
 
 beforeEach(() => {
-  mockInvoke.mockReset();
+  mockStream.mockReset();
 });
 
 afterEach(() => {
@@ -55,12 +81,12 @@ describe("llmModelService", () => {
   });
 
   it("resolves the cleaned translation and passes the prompt variables", async () => {
-    mockInvoke.mockResolvedValue({ text: "  bonjour  " });
+    stubStream(makeChunk("  bonjour  "));
 
     await expect(llmModelService.translate(params)).resolves.toMatchObject({
       text: "bonjour",
     });
-    expect(mockInvoke).toHaveBeenCalledWith(
+    expect(mockStream).toHaveBeenCalledWith(
       {
         input_language: "english",
         output_language: "polish",
@@ -70,15 +96,29 @@ describe("llmModelService", () => {
     );
   });
 
+  it("streams the accumulated cleaned text through onToken", async () => {
+    stubStream(makeChunk("Bon"), makeChunk("jour"));
+    const onToken = vi.fn();
+
+    const { text } = await llmModelService.translate({ ...params, onToken });
+
+    expect(onToken.mock.calls.map((call) => call[0])).toEqual([
+      "Bon",
+      "Bonjour",
+    ]);
+    expect(text).toBe("Bonjour");
+  });
+
   it("returns token usage stats from usage_metadata", async () => {
-    mockInvoke.mockResolvedValue({
-      text: "bonjour",
-      usage_metadata: {
-        input_tokens: 10,
-        output_tokens: 20,
-        total_tokens: 30,
-      },
-    });
+    stubStream(
+      makeChunk("bonjour", {
+        usage_metadata: {
+          input_tokens: 10,
+          output_tokens: 20,
+          total_tokens: 30,
+        },
+      }),
+    );
 
     const { stats } = await llmModelService.translate(params);
 
@@ -90,10 +130,11 @@ describe("llmModelService", () => {
   });
 
   it("falls back to Ollama response_metadata for token counts", async () => {
-    mockInvoke.mockResolvedValue({
-      text: "bonjour",
-      response_metadata: { prompt_eval_count: 5, eval_count: 7 },
-    });
+    stubStream(
+      makeChunk("bonjour", {
+        response_metadata: { prompt_eval_count: 5, eval_count: 7 },
+      }),
+    );
 
     const { stats } = await llmModelService.translate(params);
 
@@ -103,7 +144,7 @@ describe("llmModelService", () => {
   });
 
   it("defaults token counts to zero when no metadata is present", async () => {
-    mockInvoke.mockResolvedValue({ text: "bonjour" });
+    stubStream(makeChunk("bonjour"));
 
     const { stats } = await llmModelService.translate(params);
 
@@ -115,29 +156,29 @@ describe("llmModelService", () => {
 
   it("retries once on failure, then resolves", async () => {
     vi.useFakeTimers();
-    mockInvoke
+    mockStream
       .mockRejectedValueOnce(new Error("boom"))
-      .mockResolvedValueOnce({ text: "bonjour" });
+      .mockImplementationOnce(async () => streamOf(makeChunk("bonjour")));
 
     const promise = llmModelService.translate(params);
     // withRetry waits delayMs (1000) between the two attempts.
     await vi.advanceTimersByTimeAsync(1000);
 
     await expect(promise).resolves.toMatchObject({ text: "bonjour" });
-    expect(mockInvoke).toHaveBeenCalledTimes(2);
+    expect(mockStream).toHaveBeenCalledTimes(2);
   });
 
-  it("does not retry when the invoke fails with AbortError", async () => {
-    mockInvoke.mockRejectedValue(abortError());
+  it("does not retry when the stream fails with AbortError", async () => {
+    mockStream.mockRejectedValue(abortError());
 
     await expect(llmModelService.translate(params)).rejects.toMatchObject({
       name: "AbortError",
     });
-    expect(mockInvoke).toHaveBeenCalledTimes(1);
+    expect(mockStream).toHaveBeenCalledTimes(1);
   });
 
   it("aborts the in-flight request when the external signal fires", async () => {
-    invokeRejectingOnAbort();
+    streamRejectingOnAbort();
     const controller = new AbortController();
 
     const promise = llmModelService.translate({
@@ -148,12 +189,12 @@ describe("llmModelService", () => {
     controller.abort();
 
     await expect(promise).rejects.toMatchObject({ name: "AbortError" });
-    expect(mockInvoke).toHaveBeenCalledTimes(1);
+    expect(mockStream).toHaveBeenCalledTimes(1);
   });
 
   it("aborts the request when the timeout elapses", async () => {
     vi.useFakeTimers();
-    invokeRejectingOnAbort();
+    streamRejectingOnAbort();
 
     const promise = llmModelService.translate(params);
     promise.catch(() => {});
@@ -170,7 +211,7 @@ describe("llmModelService", () => {
         llmModelService.setModel("llama3");
         expect(config.MODEL).toBe("llama3");
 
-        mockInvoke.mockResolvedValue({ text: "ok" });
+        stubStream(makeChunk("ok"));
         await expect(llmModelService.translate(params)).resolves.toMatchObject({
           text: "ok",
         });

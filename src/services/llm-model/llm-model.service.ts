@@ -38,6 +38,12 @@ interface ChainResponse {
   };
 }
 
+// A streamed message chunk: a ChainResponse that also aggregates with the next
+// chunk via `.concat` (AIMessageChunk's contract).
+type ChainChunk = ChainResponse & {
+  concat(next: ChainChunk): ChainChunk;
+};
+
 // Derives the stats-bar metrics from a chain response and the measured elapsed
 // time, preferring LangChain's usage_metadata and falling back to Ollama's raw
 // eval counts.
@@ -93,14 +99,17 @@ class LlmModelService {
     this.rebuild();
   }
 
-  // Translates `text`, returning the cleaned translation plus per-request stats
-  // (elapsed time, token usage, tok/s). Retries once on failure; the request is
-  // aborted on timeout or when `signal` fires.
+  // Translates `text`, streaming partial output through `onToken` and returning
+  // the cleaned translation plus per-request stats (elapsed time, token usage,
+  // tok/s). Retries once on failure; the request is aborted on timeout or when
+  // `signal` fires. A mid-stream retry re-streams from scratch — `onToken`
+  // replaces the partial text, so the display resets rather than duplicating.
   async translate({
     text,
     fromLang,
     toLang,
     signal,
+    onToken,
   }: TranslateParams): Promise<TranslationResult> {
     const startedAt = Date.now();
     const res: ChainResponse = await withRetry(
@@ -118,7 +127,7 @@ class LlmModelService {
           else signal.addEventListener("abort", onAbort, { once: true });
         }
         try {
-          return await this.chain.invoke(
+          const stream = await this.chain.stream(
             {
               input_language: fromLang,
               output_language: toLang,
@@ -126,6 +135,18 @@ class LlmModelService {
             },
             { signal: controller.signal },
           );
+          // Concatenate chunks so the aggregate carries the final token-usage
+          // metadata (Ollama emits eval counts on the last chunk).
+          let aggregate: ChainChunk | undefined;
+          for await (const chunk of stream as AsyncIterable<ChainChunk>) {
+            aggregate =
+              aggregate === undefined ? chunk : aggregate.concat(chunk);
+            onToken?.(cleanText(aggregate.text));
+          }
+          if (aggregate === undefined) {
+            throw new Error("Ollama returned an empty stream");
+          }
+          return aggregate;
         } finally {
           clearTimeout(timeoutId);
           signal?.removeEventListener("abort", onAbort);

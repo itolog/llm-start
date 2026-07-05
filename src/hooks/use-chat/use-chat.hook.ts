@@ -29,14 +29,31 @@ export function useChat({
   const abortControllerRef = useRef<AbortController | null>(null);
   const modelAvailableRef = useRef<boolean | null>(null);
 
-  const addMessage = useCallback((role: "You" | "Bot", text: string) => {
+  const appendMessage = useCallback((message: Message) => {
     setMessages((prev) => {
-      const newMessages = [...prev, createMessage(role, text)];
+      const newMessages = [...prev, message];
       if (newMessages.length > appConfig.MAX_MESSAGES) {
         return newMessages.slice(newMessages.length - appConfig.MAX_MESSAGES);
       }
       return newMessages;
     });
+  }, []);
+
+  const addMessage = useCallback(
+    (role: "You" | "Bot", text: string) => {
+      appendMessage(createMessage(role, text));
+    },
+    [appendMessage],
+  );
+
+  // Replaces the text of an existing message (by id) — used to fill the bot
+  // message in as streamed tokens arrive.
+  const updateMessage = useCallback((id: string, text: string) => {
+    setMessages((prev) =>
+      prev.map((message) =>
+        message.id === id ? { ...message, text } : message,
+      ),
+    );
   }, []);
 
   useEffect(() => {
@@ -79,6 +96,10 @@ export function useChat({
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
+      // Empty bot message created up front; streamed tokens fill it in live.
+      const botMessage = createMessage("Bot", "");
+      appendMessage(botMessage);
+
       try {
         const { text: translation, stats: translationStats } =
           await llmModelService.translate({
@@ -86,23 +107,24 @@ export function useChat({
             fromLang,
             toLang,
             signal: controller.signal,
+            onToken: (partial) => updateMessage(botMessage.id, partial),
           });
-        addMessage("Bot", translation);
+        updateMessage(botMessage.id, translation);
         setStats(translationStats);
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
-          addMessage("Bot", "Request cancelled");
+          updateMessage(botMessage.id, "Request cancelled");
         } else {
           const message =
             error instanceof Error ? error.message : String(error);
-          addMessage("Bot", `Error: ${message}`);
+          updateMessage(botMessage.id, `Error: ${message}`);
         }
       } finally {
         setIsLoading(false);
         abortControllerRef.current = null;
       }
     },
-    [addMessage, fromLang, toLang],
+    [addMessage, appendMessage, updateMessage, fromLang, toLang],
   );
 
   const submit = useCallback(async () => {

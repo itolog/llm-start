@@ -104,6 +104,27 @@ describe("useChat", () => {
     expect(result.current.isLoading).toBe(false);
   });
 
+  it("fills the bot message in live as tokens stream", async () => {
+    mockTranslate.mockImplementation(
+      async ({ onToken }: { onToken?: (partial: string) => void }) => {
+        onToken?.("Bon");
+        onToken?.("Bonjour");
+        return translationResult("Bonjour");
+      },
+    );
+    const { result } = setup();
+
+    await submitText(result, "hello");
+
+    // one You line + one Bot line (updated in place, not appended per token)
+    expect(
+      result.current.messages.filter((m) => m.role === "Bot"),
+    ).toHaveLength(
+      2, // welcome + the streamed reply
+    );
+    expect(texts(result)).toContain("Bonjour");
+  });
+
   it("exposes the translation stats after a successful translation", async () => {
     mockTranslate.mockResolvedValue(translationResult("bonjour"));
     const { result } = setup();
