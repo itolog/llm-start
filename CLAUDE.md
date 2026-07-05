@@ -84,8 +84,7 @@ src/
     loading-indicator/               # { loading-indicator.component.tsx, index.ts }
     input-bar/                       # { input-bar.component.tsx, input-bar.type.ts, index.ts }
   hooks/
-    use-chat/                        # { use-chat.hook.ts, use-chat.type.ts, index.ts } — messages, submit, abort
-    use-lang-settings/               # { use-lang-settings.hook.ts, index.ts } — fromLang / toLang state
+    use-chat/                        # { use-chat.hook.ts, use-chat.type.ts, index.ts } — messages, submit, abort, translate
   types/
     message.type.ts                  # Message type (plain type file, not a module)
   commands/

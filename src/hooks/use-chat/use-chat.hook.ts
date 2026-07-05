@@ -70,6 +70,58 @@ export function useChat({
     setMessages([WELCOME_MESSAGE]);
   }, []);
 
+  const handleTranslate = useCallback(
+    async (text: string) => {
+      if (modelAvailableRef.current === false) {
+        addMessage(
+          "Bot",
+          `Model "${config.MODEL}" is not available. Please pull it first: ollama pull ${config.MODEL}`,
+        );
+        return;
+      }
+      addMessage("You", text);
+      setIsLoading(true);
+      abortControllerRef.current?.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      try {
+        const res = await withRetry(
+          () => {
+            const timeoutId = setTimeout(
+              () => controller.abort(),
+              LLM_TIMEOUT_MS,
+            );
+            return translationChain
+              .invoke(
+                {
+                  input_language: fromLang,
+                  output_language: toLang,
+                  input: text,
+                },
+                { signal: controller.signal },
+              )
+              .finally(() => clearTimeout(timeoutId));
+          },
+          { retries: 1, delayMs: 1000 },
+        );
+        addMessage("Bot", cleanText(res.text));
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          addMessage("Bot", "Request cancelled");
+        } else {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          addMessage("Bot", `Error: ${message}`);
+        }
+      } finally {
+        setIsLoading(false);
+        abortControllerRef.current = null;
+      }
+    },
+    [addMessage, fromLang, toLang],
+  );
+
   const submit = useCallback(async () => {
     if (!input.trim() || isLoading) return;
 
@@ -88,7 +140,7 @@ export function useChat({
         setToLang(lang);
         addMessage("Bot", `Target language changed to: ${lang}`);
       })
-      .with({ type: "clear" }, () => clear())
+      .with({ type: "clear" }, clear)
       .with({ type: "help" }, () =>
         addMessage(
           "Bot",
@@ -96,54 +148,7 @@ export function useChat({
         ),
       )
       .with({ type: "exit" }, () => exit())
-      .with({ type: "translate" }, async ({ text }) => {
-        if (modelAvailableRef.current === false) {
-          addMessage(
-            "Bot",
-            `Model "${config.MODEL}" is not available. Please pull it first: ollama pull ${config.MODEL}`,
-          );
-          return;
-        }
-        addMessage("You", text);
-        setIsLoading(true);
-        abortControllerRef.current?.abort();
-        const controller = new AbortController();
-        abortControllerRef.current = controller;
-
-        try {
-          const res = await withRetry(
-            () => {
-              const timeoutId = setTimeout(
-                () => controller.abort(),
-                LLM_TIMEOUT_MS,
-              );
-              return translationChain
-                .invoke(
-                  {
-                    input_language: fromLang,
-                    output_language: toLang,
-                    input: text,
-                  },
-                  { signal: controller.signal },
-                )
-                .finally(() => clearTimeout(timeoutId));
-            },
-            { retries: 1, delayMs: 1000 },
-          );
-          addMessage("Bot", cleanText(res.text));
-        } catch (error) {
-          if (error instanceof Error && error.name === "AbortError") {
-            addMessage("Bot", "Request cancelled");
-          } else {
-            const message =
-              error instanceof Error ? error.message : String(error);
-            addMessage("Bot", `Error: ${message}`);
-          }
-        } finally {
-          setIsLoading(false);
-          abortControllerRef.current = null;
-        }
-      })
+      .with({ type: "translate" }, ({ text }) => handleTranslate(text))
       .exhaustive();
   }, [
     input,
@@ -151,8 +156,7 @@ export function useChat({
     addMessage,
     clear,
     exit,
-    fromLang,
-    toLang,
+    handleTranslate,
     setFromLang,
     setToLang,
   ]);
