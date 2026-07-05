@@ -6,7 +6,7 @@ import { MODEL_CHECK_TIMEOUT_MS, OLLAMA_BASE_URL } from "@/constants";
 import { OllamaTag } from "./llm-model.type";
 import { prompt } from "./llm-prompt";
 
-export const llm = new ChatOllama({
+const llm = new ChatOllama({
   model: config.MODEL,
   temperature: config.LLM_TEMP,
 });
