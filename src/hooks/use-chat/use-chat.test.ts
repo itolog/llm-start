@@ -60,6 +60,17 @@ async function submitText(
 const texts = (result: { current: ReturnType<typeof useChat> }) =>
   result.current.messages.map((m) => m.text);
 
+const fakeStats = {
+  elapsedMs: 100,
+  promptTokens: 1,
+  completionTokens: 2,
+  totalTokens: 3,
+  tokensPerSecond: 20,
+};
+
+// The service now returns { text, stats }; helper to build that shape.
+const translationResult = (text: string) => ({ text, stats: fakeStats });
+
 beforeEach(() => {
   vi.clearAllMocks();
   mockCheckModel.mockResolvedValue(true);
@@ -74,7 +85,7 @@ describe("useChat", () => {
   });
 
   it("translates: adds the user line and the bot reply", async () => {
-    mockTranslate.mockResolvedValue("bonjour");
+    mockTranslate.mockResolvedValue(translationResult("bonjour"));
     const { result } = setup();
 
     await submitText(result, "hello");
@@ -91,6 +102,17 @@ describe("useChat", () => {
     expect(texts(result)).toContain("hello");
     expect(texts(result)).toContain("bonjour");
     expect(result.current.isLoading).toBe(false);
+  });
+
+  it("exposes the translation stats after a successful translation", async () => {
+    mockTranslate.mockResolvedValue(translationResult("bonjour"));
+    const { result } = setup();
+
+    expect(result.current.stats).toBeNull();
+
+    await submitText(result, "hello");
+
+    expect(result.current.stats).toMatchObject(fakeStats);
   });
 
   it("shows a neutral message when the request is aborted", async () => {
@@ -115,7 +137,7 @@ describe("useChat", () => {
   });
 
   it("clears history back to the welcome message via /clear", async () => {
-    mockTranslate.mockResolvedValue("bonjour");
+    mockTranslate.mockResolvedValue(translationResult("bonjour"));
     const { result } = setup();
 
     await submitText(result, "hello");

@@ -57,7 +57,9 @@ describe("llmModelService", () => {
   it("resolves the cleaned translation and passes the prompt variables", async () => {
     mockInvoke.mockResolvedValue({ text: "  bonjour  " });
 
-    await expect(llmModelService.translate(params)).resolves.toBe("bonjour");
+    await expect(llmModelService.translate(params)).resolves.toMatchObject({
+      text: "bonjour",
+    });
     expect(mockInvoke).toHaveBeenCalledWith(
       {
         input_language: "english",
@@ -66,6 +68,49 @@ describe("llmModelService", () => {
       },
       expect.objectContaining({ signal: expect.anything() }),
     );
+  });
+
+  it("returns token usage stats from usage_metadata", async () => {
+    mockInvoke.mockResolvedValue({
+      text: "bonjour",
+      usage_metadata: {
+        input_tokens: 10,
+        output_tokens: 20,
+        total_tokens: 30,
+      },
+    });
+
+    const { stats } = await llmModelService.translate(params);
+
+    expect(stats.promptTokens).toBe(10);
+    expect(stats.completionTokens).toBe(20);
+    expect(stats.totalTokens).toBe(30);
+    expect(stats.elapsedMs).toBeGreaterThanOrEqual(0);
+    expect(stats.tokensPerSecond).toBeGreaterThanOrEqual(0);
+  });
+
+  it("falls back to Ollama response_metadata for token counts", async () => {
+    mockInvoke.mockResolvedValue({
+      text: "bonjour",
+      response_metadata: { prompt_eval_count: 5, eval_count: 7 },
+    });
+
+    const { stats } = await llmModelService.translate(params);
+
+    expect(stats.promptTokens).toBe(5);
+    expect(stats.completionTokens).toBe(7);
+    expect(stats.totalTokens).toBe(12);
+  });
+
+  it("defaults token counts to zero when no metadata is present", async () => {
+    mockInvoke.mockResolvedValue({ text: "bonjour" });
+
+    const { stats } = await llmModelService.translate(params);
+
+    expect(stats.promptTokens).toBe(0);
+    expect(stats.completionTokens).toBe(0);
+    expect(stats.totalTokens).toBe(0);
+    expect(stats.tokensPerSecond).toBe(0);
   });
 
   it("retries once on failure, then resolves", async () => {
@@ -78,7 +123,7 @@ describe("llmModelService", () => {
     // withRetry waits delayMs (1000) between the two attempts.
     await vi.advanceTimersByTimeAsync(1000);
 
-    await expect(promise).resolves.toBe("bonjour");
+    await expect(promise).resolves.toMatchObject({ text: "bonjour" });
     expect(mockInvoke).toHaveBeenCalledTimes(2);
   });
 
@@ -126,7 +171,9 @@ describe("llmModelService", () => {
         expect(config.MODEL).toBe("llama3");
 
         mockInvoke.mockResolvedValue({ text: "ok" });
-        await expect(llmModelService.translate(params)).resolves.toBe("ok");
+        await expect(llmModelService.translate(params)).resolves.toMatchObject({
+          text: "ok",
+        });
       } finally {
         llmModelService.setModel(original);
       }

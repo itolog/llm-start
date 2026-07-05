@@ -6,30 +6,12 @@ import { match } from "ts-pattern";
 import { parseCommand } from "@/commands/parse-command";
 import { config } from "@/config";
 import { MAX_MESSAGES } from "@/constants";
-import { llmModelService } from "@/services/llm-model";
+import { llmModelService, TranslationStats } from "@/services/llm-model";
 import { Message } from "@/types/message.type";
 import { createMessage } from "@/utils/create-message";
 
+import { HELP_MESSAGE, WELCOME_MESSAGE } from "./use-chat.model";
 import { UseChatOptions } from "./use-chat.type";
-
-const WELCOME_MESSAGE: Message = createMessage(
-  "Bot",
-  [
-    "Hello! I am a TUI translator.",
-    "Commands: /from <lang>, /to <lang>, /model <name>, /temp <0-2>, /clear, /help, /exit",
-  ].join(" "),
-);
-
-const HELP_MESSAGE = [
-  "Commands:",
-  "/from <lang> — set source language",
-  "/to <lang> — set target language",
-  "/model <name> — switch the Ollama model",
-  "/temp <0-2> — set the sampling temperature",
-  "/clear — clear history",
-  "/help — show this help",
-  "/exit (or /quit, /q) — quit",
-].join("\n");
 
 export function useChat({
   fromLang,
@@ -43,6 +25,7 @@ export function useChat({
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [isLoading, setIsLoading] = useState(false);
   const [input, setInput] = useState("");
+  const [stats, setStats] = useState<TranslationStats | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const modelAvailableRef = useRef<boolean | null>(null);
@@ -98,13 +81,15 @@ export function useChat({
       abortControllerRef.current = controller;
 
       try {
-        const translation = await llmModelService.translate({
-          text,
-          fromLang,
-          toLang,
-          signal: controller.signal,
-        });
+        const { text: translation, stats: translationStats } =
+          await llmModelService.translate({
+            text,
+            fromLang,
+            toLang,
+            signal: controller.signal,
+          });
         addMessage("Bot", translation);
+        setStats(translationStats);
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
           addMessage("Bot", "Request cancelled");
@@ -169,5 +154,5 @@ export function useChat({
     verifyModel,
   ]);
 
-  return { messages, isLoading, input, setInput, submit, clear };
+  return { messages, isLoading, input, setInput, submit, clear, stats };
 }

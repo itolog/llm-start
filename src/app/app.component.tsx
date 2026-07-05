@@ -6,6 +6,7 @@ import { Header } from "@/components/header";
 import { InputBar } from "@/components/input-bar";
 import { MessageList } from "@/components/message-list";
 import { SettingsBar } from "@/components/settings-bar";
+import { StatsBar } from "@/components/stats-bar";
 import { config } from "@/config";
 import { useChat } from "@/hooks/use-chat";
 
@@ -14,7 +15,7 @@ export const App = () => {
   const [toLang, setToLang] = useState("polish");
   const [model, setModel] = useState(config.MODEL);
   const [temp, setTemp] = useState(config.LLM_TEMP);
-  const { messages, isLoading, input, setInput, submit } = useChat({
+  const { messages, isLoading, input, setInput, submit, stats } = useChat({
     fromLang,
     toLang,
     setFromLang,
@@ -33,6 +34,7 @@ export const App = () => {
         temp={temp}
       />
       <MessageList messages={messages} isLoading={isLoading} />
+      {stats && <StatsBar stats={stats} />}
       <InputBar value={input} onChange={setInput} onSubmit={submit} />
     </Box>
   );

@@ -1,6 +1,6 @@
 # Improvements & Development Roadmap
 
-> Progress: 5/10 · Created: 2026-07-05 · Updated: 2026-07-05
+> Progress: 6/10 · Created: 2026-07-05 · Updated: 2026-07-05
 > Branch: `main` · Scope: DX tooling, test coverage, and feature roadmap for the TUI translator
 
 ## A. Tooling & DX
@@ -36,7 +36,7 @@
 | C3 | Stream translation output token-by-token | ⬜ todo | — |
 | C4 | Persist chat history across sessions | ⬜ todo | — |
 | C5 | Show active model/temperature in the settings bar | ✅ done | 2026-07-05 |
-| C6 | Add a stats bar above the input (elapsed time, token usage, tok/s) | ⬜ todo | — |
+| C6 | Add a stats bar above the input (elapsed time, token usage, tok/s) | ✅ done | 2026-07-05 |
 
 ### Notes
 
@@ -48,6 +48,8 @@
   2. **Token usage** — tokens spent on the request (prompt + completion; surface `promptTokens`/`completionTokens`/`totalTokens` from the Ollama response metadata — `eval_count`/`prompt_eval_count`).
   3. **Tokens/second** — generation throughput (`completionTokens / elapsedSeconds`), and possibly other derived metrics (e.g. total-tokens counter across the session).
   Source the metrics from ChatOllama response metadata (`response.usage_metadata` / `response.response_metadata` — LangChain surfaces Ollama's `eval_count`, `eval_duration`, `prompt_eval_count`). Decide: where metrics live (extend `LlmModelService.translate` to return usage alongside text, or expose via callback), how they flow to `App`/the bar (new state vs. `useChat` return), and whether the bar is always visible or only after the first translation. **Note the interaction with C3 (streaming):** if streaming lands first, tok/s can update live during the stream; otherwise compute once on completion. Placement is a new `stats-bar/` module folder (mirrors `settings-bar/`), rendered between the message list and `InputBar`.
+
+  **Done (2026-07-05):** `LlmModelService.translate` now returns `TranslationResult` (`{ text, stats }`) instead of a bare string. `TranslationStats` = `elapsedMs` (wall-clock, `Date.now()` around `withRetry`), `promptTokens`/`completionTokens`/`totalTokens` (a `buildStats` helper reads `usage_metadata.input_tokens/output_tokens/total_tokens`, falling back to Ollama's `response_metadata.prompt_eval_count`/`eval_count`, defaulting to 0), and `tokensPerSecond` (`completionTokens / elapsedSeconds`, 0 when elapsed is 0). `useChat` holds a `stats` state (`TranslationStats | null`), set on successful translation and returned from the hook. `App` renders the new `stats-bar/` module (`StatsBar`, `dimColor` text mirroring `settings-bar/`) between the message list and `InputBar`, **only after the first translation** (`{stats && <StatsBar …/>}`) — computed once on completion (not updated on abort/error). Streaming (C3) not yet landed, so tok/s is a single post-completion figure. Suite 77 → 81 (+3 service stats tests, +1 useChat stats test); `verify` green.
 
 ## Execution order
 
@@ -64,3 +66,4 @@
 - 2026-07-05 — A3 done: coverage `thresholds` + view/prompt `exclude`s in `vitest.config.ts`; added 5 `checkModelAvailable` tests (58 → 63). Gate kept out of the bun `verify`/pre-push (v8 coverage yields 0 tests under bun); enforcement deferred to CI (A2) under node. `verify` stays bun-native (lint + `bun run test`).
 - 2026-07-05 — C1/C2/C5 done: runtime `/model` + `/temp` commands over a mutable config + `LlmModelService.setModel`/`setTemperature` rebuild; settings bar shows model @ temp. Suite 63 → 77, `verify` green. C3 (streaming) and C4 (persistence) remain.
 - 2026-07-05 — C6 added (todo): a stats bar above the input showing per-translation elapsed time, token usage, and tokens/second, sourced from ChatOllama response metadata. Interacts with C3 (live tok/s if streaming lands first).
+- 2026-07-05 — C6 done: `translate` returns `{ text, stats }` (`TranslationStats`: elapsed, prompt/completion/total tokens, tok/s) via a `buildStats` helper (usage_metadata → Ollama response_metadata fallback → 0); `useChat` exposes a `stats` state; new `stats-bar/` module rendered after the first translation between the message list and input. Suite 77 → 81, `verify` green.

@@ -1,2 +1,2 @@
 export { llmModelService } from "./llm-model.service";
-export type { TranslateParams } from "./llm-model.type";
+export type { TranslateParams, TranslationStats } from "./llm-model.type";
