@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "ignorePatterns": ["dist/**"],
-  "plugins": ["typescript", "react", "react-perf", "unicorn", "oxc"],
+  "plugins": ["typescript", "react", "react-perf", "unicorn", "oxc", "import"],
   "env": {
     "browser": true,
     "node": true
@@ -11,6 +11,7 @@
   },
   "rules": {
     "react-hooks/exhaustive-deps": "warn",
-    "react-hooks/rules-of-hooks": "error"
+    "react-hooks/rules-of-hooks": "error",
+    "import/no-cycle": "error"
   }
 }
