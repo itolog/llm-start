@@ -1,7 +1,9 @@
 import React from "react";
 
 import { Box, Text } from "ink";
+import { match, P } from "ts-pattern";
 
+import { CommandsHelp } from "@/components/commands-help";
 import { LoadingIndicator } from "@/components/loading-indicator";
 
 import { MessageItemProps } from "./message.type";
@@ -28,8 +30,13 @@ export const MessageItem = ({ msg }: MessageItemProps) => (
       </Text>
       <Text dimColor>{formatTime(msg.createdAt)}</Text>
     </Box>
-    {/* An empty bot card is the pending translation — show the spinner inside
-        it (it fills with streamed tokens), instead of a separate loading row. */}
-    {msg.text ? <Text>{msg.text}</Text> : <LoadingIndicator />}
+    {match(msg)
+      .with({ kind: "commands" }, () => <CommandsHelp />)
+      .with({ text: P.string.minLength(1) }, ({ text }) => <Text>{text}</Text>)
+      // An empty bot card is a pending translation — show the spinner inside it
+      // (it fills with streamed tokens) instead of a separate loading row.
+      .otherwise(() => (
+        <LoadingIndicator />
+      ))}
   </Box>
 );

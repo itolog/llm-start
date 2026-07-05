@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 
 import { Box } from "ink";
+import { match, P } from "ts-pattern";
 
 import { Header } from "@/components/header";
 import { InputBar } from "@/components/input-bar";
@@ -9,6 +10,7 @@ import { MessageList } from "@/components/message-list";
 import { ModelPicker } from "@/components/model-picker";
 import { SettingsBar } from "@/components/settings-bar";
 import { StatsBar } from "@/components/stats-bar";
+import { TempPicker } from "@/components/temp-picker";
 import { config } from "@/config";
 import { useChat } from "@/hooks/use-chat";
 
@@ -27,6 +29,9 @@ export const App = () => {
     modelItems,
     selectModel,
     cancelModelPicker,
+    tempPickerOpen,
+    selectTemp,
+    cancelTempPicker,
   } = useChat({
     fromLang,
     toLang,
@@ -46,16 +51,32 @@ export const App = () => {
         temp={temp}
       />
       <MessageList messages={messages} />
-      {isLoading ? <LiveTimer /> : stats && <StatsBar stats={stats} />}
-      {modelItems ? (
-        <ModelPicker
-          items={modelItems}
-          onSelect={selectModel}
-          onCancel={cancelModelPicker}
-        />
-      ) : (
-        <InputBar value={input} onChange={setInput} onSubmit={submit} />
-      )}
+
+      {match({ isLoading, stats })
+        .with({ isLoading: true }, () => <LiveTimer />)
+        .with({ stats: P.nonNullable }, ({ stats }) => (
+          <StatsBar stats={stats} />
+        ))
+        .otherwise(() => null)}
+
+      {match({ modelItems, tempPickerOpen })
+        .with({ modelItems: P.nonNullable }, ({ modelItems }) => (
+          <ModelPicker
+            items={modelItems}
+            onSelect={selectModel}
+            onCancel={cancelModelPicker}
+          />
+        ))
+        .with({ tempPickerOpen: true }, () => (
+          <TempPicker
+            initial={temp}
+            onSelect={selectTemp}
+            onCancel={cancelTempPicker}
+          />
+        ))
+        .otherwise(() => (
+          <InputBar value={input} onChange={setInput} onSubmit={submit} />
+        ))}
     </Box>
   );
 };

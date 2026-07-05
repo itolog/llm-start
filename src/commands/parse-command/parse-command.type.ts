@@ -4,6 +4,7 @@ export type Command =
   | { type: "model"; model: string }
   | { type: "models" }
   | { type: "temp"; temp: number }
+  | { type: "tempPicker" }
   | { type: "clear" }
   | { type: "help" }
   | { type: "exit" }

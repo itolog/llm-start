@@ -9,7 +9,7 @@ import { llmModelService, TranslationStats } from "@/services/llm-model";
 import { Message } from "@/types/message.type";
 import { createMessage } from "@/utils/create-message";
 
-import { HELP_MESSAGE, WELCOME_MESSAGE } from "./use-chat.model";
+import { WELCOME_MESSAGE } from "./use-chat.model";
 import { UseChatOptions } from "./use-chat.type";
 
 export function useChat({
@@ -27,6 +27,8 @@ export function useChat({
   const [stats, setStats] = useState<TranslationStats | null>(null);
   // Non-null while the model picker is open (holds the installed model tags).
   const [modelItems, setModelItems] = useState<string[] | null>(null);
+  // Whether the temperature stepper is open.
+  const [tempPickerOpen, setTempPickerOpen] = useState(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const modelAvailableRef = useRef<boolean | null>(null);
@@ -82,26 +84,28 @@ export function useChat({
   const initModel = useCallback(async () => {
     const result = await llmModelService.resolveStartupModel();
 
-    if (result.status === "no-models") {
-      modelAvailableRef.current = false;
-      addMessage(
-        "Bot",
-        "No models are installed. Pull one first, e.g.: ollama pull gemma3:4b",
-      );
-      return;
-    }
-
-    if (result.status === "fallback") {
-      const wanted = config.MODEL;
-      llmModelService.setModel(result.model);
-      setModel(result.model);
-      addMessage(
-        "Bot",
-        `Model "${wanted}" is not installed — switched to "${result.model}". Use /model to pick another.`,
-      );
-    }
-
-    modelAvailableRef.current = true;
+    match(result)
+      .with({ status: "no-models" }, () => {
+        modelAvailableRef.current = false;
+        addMessage(
+          "Bot",
+          "No models are installed. Pull one first, e.g.: ollama pull gemma3:4b",
+        );
+      })
+      .with({ status: "fallback" }, ({ model }) => {
+        const wanted = config.MODEL;
+        llmModelService.setModel(model);
+        setModel(model);
+        addMessage(
+          "Bot",
+          `Model "${wanted}" is not installed — switched to "${model}". Use /model to pick another.`,
+        );
+        modelAvailableRef.current = true;
+      })
+      .with({ status: "ok" }, () => {
+        modelAvailableRef.current = true;
+      })
+      .exhaustive();
   }, [addMessage, setModel]);
 
   useEffect(() => {
@@ -111,6 +115,11 @@ export function useChat({
   const clear = useCallback(() => {
     setMessages([WELCOME_MESSAGE]);
   }, []);
+
+  // Appends the commands reference (rendered by CommandsHelp).
+  const showHelp = useCallback(() => {
+    appendMessage(createMessage("Bot", "", "commands"));
+  }, [appendMessage]);
 
   // Switches the active model (shared by `/model <name>` and the picker).
   const applyModel = useCallback(
@@ -133,6 +142,27 @@ export function useChat({
   );
 
   const cancelModelPicker = useCallback(() => setModelItems(null), []);
+
+  // Updates the sampling temperature (shared by `/temp <value>` and the stepper).
+  const applyTemp = useCallback(
+    (temp: number) => {
+      llmModelService.setTemperature(temp);
+      setTemp(temp);
+      addMessage("Bot", `Temperature changed to: ${temp}`);
+    },
+    [setTemp, addMessage],
+  );
+
+  // Stepper selection: close it, then apply the chosen temperature.
+  const selectTemp = useCallback(
+    (temp: number) => {
+      setTempPickerOpen(false);
+      applyTemp(temp);
+    },
+    [applyTemp],
+  );
+
+  const cancelTempPicker = useCallback(() => setTempPickerOpen(false), []);
 
   const handleTranslate = useCallback(
     async (text: string) => {
@@ -212,13 +242,10 @@ export function useChat({
         }
         setModelItems(items);
       })
-      .with({ type: "temp" }, ({ temp }) => {
-        llmModelService.setTemperature(temp);
-        setTemp(temp);
-        addMessage("Bot", `Temperature changed to: ${temp}`);
-      })
+      .with({ type: "temp" }, ({ temp }) => applyTemp(temp))
+      .with({ type: "tempPicker" }, () => setTempPickerOpen(true))
       .with({ type: "clear" }, clear)
-      .with({ type: "help" }, () => addMessage("Bot", HELP_MESSAGE))
+      .with({ type: "help" }, showHelp)
       .with({ type: "exit" }, () => exit())
       .with({ type: "translate" }, ({ text }) => handleTranslate(text))
       .exhaustive();
@@ -227,12 +254,13 @@ export function useChat({
     isLoading,
     addMessage,
     clear,
+    showHelp,
     exit,
     handleTranslate,
     applyModel,
+    applyTemp,
     setFromLang,
     setToLang,
-    setTemp,
   ]);
 
   return {
@@ -246,5 +274,8 @@ export function useChat({
     modelItems,
     selectModel,
     cancelModelPicker,
+    tempPickerOpen,
+    selectTemp,
+    cancelTempPicker,
   };
 }

@@ -158,8 +158,12 @@ describe("parseCommand", () => {
       expect(parseCommand("/temp 2.1").type).toBe("error");
     });
 
-    it("returns error for /temp with no space", () => {
-      expect(parseCommand("/temp").type).toBe("error");
+    it("opens the temp stepper for bare /temp", () => {
+      expect(parseCommand("/temp")).toEqual({ type: "tempPicker" });
+    });
+
+    it("opens the stepper for /temp with only trailing space", () => {
+      expect(parseCommand("/temp ")).toEqual({ type: "tempPicker" });
     });
   });
 

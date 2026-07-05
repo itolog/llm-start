@@ -62,8 +62,9 @@ export function parseCommand(input: string): Command {
     return { type: "temp", temp };
   }
 
+  // Bare `/temp` (or "/temp " with no argument) opens the interactive stepper.
   if (lower === "/temp") {
-    return { type: "error", message: USAGE_TEMP };
+    return { type: "tempPicker" };
   }
 
   if (trimmed.startsWith("/")) {

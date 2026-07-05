@@ -258,7 +258,7 @@ describe("useChat", () => {
     expect(texts(result).some((t) => t.includes("No models found"))).toBe(true);
   });
 
-  it("routes /temp to the service and state", async () => {
+  it("routes /temp <value> to the service and state", async () => {
     const { result, setTemp } = setup();
 
     await submitText(result, "/temp 0.7");
@@ -267,6 +267,34 @@ describe("useChat", () => {
     expect(setTemp).toHaveBeenCalledWith(0.7);
     expect(mockTranslate).not.toHaveBeenCalled();
     expect(texts(result)).toContain("Temperature changed to: 0.7");
+  });
+
+  it("opens the temp stepper on bare /temp, then applies a selection", async () => {
+    const { result, setTemp } = setup();
+
+    await submitText(result, "/temp");
+
+    expect(result.current.tempPickerOpen).toBe(true);
+    expect(mockSetTemp).not.toHaveBeenCalled(); // nothing applied yet
+
+    act(() => result.current.selectTemp(1.2));
+
+    expect(mockSetTemp).toHaveBeenCalledWith(1.2);
+    expect(setTemp).toHaveBeenCalledWith(1.2);
+    expect(result.current.tempPickerOpen).toBe(false); // stepper closed
+    expect(texts(result)).toContain("Temperature changed to: 1.2");
+  });
+
+  it("cancelTempPicker closes the stepper without applying a temperature", async () => {
+    const { result } = setup();
+
+    await submitText(result, "/temp");
+    expect(result.current.tempPickerOpen).toBe(true);
+
+    act(() => result.current.cancelTempPicker());
+
+    expect(result.current.tempPickerOpen).toBe(false);
+    expect(mockSetTemp).not.toHaveBeenCalled();
   });
 
   it("quits on /exit", async () => {
