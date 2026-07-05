@@ -1,12 +1,7 @@
 import { Runnable } from "@langchain/core/runnables";
 import { ChatOllama } from "@langchain/ollama";
 
-import { config } from "@/config";
-import {
-  LLM_TIMEOUT_MS,
-  MODEL_CHECK_TIMEOUT_MS,
-  OLLAMA_BASE_URL,
-} from "@/constants";
+import { appConfig, config } from "@/config";
 import { cleanText } from "@/utils/clean-text";
 import { withRetry } from "@/utils/with-retry";
 
@@ -111,7 +106,10 @@ class LlmModelService {
     const res: ChainResponse = await withRetry(
       async () => {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
+        const timeoutId = setTimeout(
+          () => controller.abort(),
+          appConfig.LLM_TIMEOUT_MS,
+        );
         // Propagate the external signal (unmount / new submit) to close the
         // HTTP connection to Ollama, same as the timeout does.
         const onAbort = () => controller.abort();
@@ -144,10 +142,10 @@ class LlmModelService {
     const controller = new AbortController();
     const timeoutId = setTimeout(
       () => controller.abort(),
-      MODEL_CHECK_TIMEOUT_MS,
+      appConfig.MODEL_CHECK_TIMEOUT_MS,
     );
     try {
-      const res = await fetch(`${OLLAMA_BASE_URL}/api/tags`, {
+      const res = await fetch(`${appConfig.OLLAMA_BASE_URL}/api/tags`, {
         signal: controller.signal,
       });
       if (!res.ok) return false;

@@ -4,8 +4,7 @@ import { useApp } from "ink";
 import { match } from "ts-pattern";
 
 import { parseCommand } from "@/commands/parse-command";
-import { config } from "@/config";
-import { MAX_MESSAGES } from "@/constants";
+import { appConfig, config } from "@/config";
 import { llmModelService, TranslationStats } from "@/services/llm-model";
 import { Message } from "@/types/message.type";
 import { createMessage } from "@/utils/create-message";
@@ -33,8 +32,8 @@ export function useChat({
   const addMessage = useCallback((role: "You" | "Bot", text: string) => {
     setMessages((prev) => {
       const newMessages = [...prev, createMessage(role, text)];
-      if (newMessages.length > MAX_MESSAGES) {
-        return newMessages.slice(newMessages.length - MAX_MESSAGES);
+      if (newMessages.length > appConfig.MAX_MESSAGES) {
+        return newMessages.slice(newMessages.length - appConfig.MAX_MESSAGES);
       }
       return newMessages;
     });

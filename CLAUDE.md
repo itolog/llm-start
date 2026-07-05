@@ -11,7 +11,7 @@ A terminal-based translation app (TUI) built with **Ink** (React for CLI), **Lan
 - Node.js v18+
 - [Ollama](https://ollama.com/) installed and running locally
 - A model pulled in Ollama (e.g., `gemma3:4b`)
-- Model defaults set in `src/config/defaultConfig.ts` (`MODEL`, `LLM_TEMP`)
+- Model defaults set in `src/config/default-model-config.ts` (`MODEL`, `LLM_TEMP`)
 
 ## Commands
 
@@ -67,16 +67,15 @@ Exported binding names stay camelCase/PascalCase (`useChat`, `createMessage`,
 ```
 src/
   index.tsx                          # Entry point — render(<App />)
-  constants.ts                       # Shared constants (OLLAMA_BASE_URL, LLM_TIMEOUT_MS, …)
   stubs/
     react-devtools-core.ts           # Empty alias for Ink's dev-only import (see tsconfig paths)
   app/
     app.component.tsx                 # Root component
     index.ts
   config/
-    index.ts                         # active config (re-exports defaultConfig) + Config type
-    default-config.ts                # MODEL, LLM_TEMP defaults
-    config.type.ts                   # Config interface
+    index.ts                         # active `config` (mutable copy of model defaults) + re-exports appConfig + ModelConfig/AppConfig types
+    model-config/                    # { model-config.type.ts (ModelConfig), default-model-config.ts (defaultModelConfig — MODEL, LLM_TEMP), index.ts }
+    app-config/                      # { app-config.type.ts (AppConfig), app-config.ts (appConfig — OLLAMA_BASE_URL, LLM_TIMEOUT_MS, MAX_MESSAGES, MODEL_CHECK_TIMEOUT_MS), index.ts }
   components/
     header/                          # { header.component.tsx, index.ts }
     settings-bar/                    # { settings-bar.component.tsx, settings-bar.type.ts, index.ts }
