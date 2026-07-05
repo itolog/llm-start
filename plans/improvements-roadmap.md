@@ -1,6 +1,6 @@
 # Improvements & Development Roadmap
 
-> Progress: 7/10 · Created: 2026-07-05 · Updated: 2026-07-05
+> Progress: 7/9 · Created: 2026-07-05 · Updated: 2026-07-05
 > Branch: `main` · Scope: DX tooling, test coverage, and feature roadmap for the TUI translator
 
 ## A. Tooling & DX
@@ -34,7 +34,6 @@
 | C1 | Runtime `/model <name>` command | ✅ done | 2026-07-05 |
 | C2 | Runtime `/temp <value>` command | ✅ done | 2026-07-05 |
 | C3 | Stream translation output token-by-token | ✅ done | 2026-07-05 |
-| C4 | Persist chat history across sessions | ⬜ todo | — |
 | C5 | Show active model/temperature in the settings bar | ✅ done | 2026-07-05 |
 | C6 | Add a stats bar above the input (elapsed time, token usage, tok/s) | ✅ done | 2026-07-05 |
 
@@ -44,7 +43,6 @@
 - **C3** — Replace `chain.invoke` with `chain.stream` in the service, surfacing partial text to the hook (e.g. a callback or async iterator) so the bot message fills in live. Keep timeout/abort/retry semantics; retry-mid-stream needs a decision.
 
   **Done (2026-07-05):** `translate` now `chain.stream`s and accumulates chunks by `.concat` (so the aggregate carries Ollama's final token-usage metadata for the stats bar). A new optional `onToken?: (partial: string) => void` on `TranslateParams` fires per chunk with the **cleaned accumulated text** (replace, not append). Timeout/abort/retry are unchanged — the stream still runs inside `withRetry` under the same `AbortController`+timeout, and `AbortError` is still not retried. **Retry-mid-stream decision:** kept the whole-attempt retry; because `onToken` is replace-based, a retry that re-streams from scratch just resets the displayed partial rather than duplicating it. The hook (`useChat`) now creates an **empty bot message up front** (`appendMessage` + captured id), fills it live via `updateMessage(id, partial)`, and on completion/abort/error updates that same message in place (new `updateMessage` + `appendMessage` helpers; `addMessage` builds on `appendMessage`). Tests: service suite rewritten to mock `chain.stream` (chunk stand-in with `.concat`, async-generator streams, fresh iterable per call for retry) + a new onToken-accumulation test; +1 useChat streaming test. Suite 81 → 83, `verify` green. **C6 interaction:** tok/s is still computed once on completion from the aggregate's metadata (not updated live per token) — a live-updating tok/s during the stream is a possible follow-up.
-- **C4** — Persist messages (bounded by `MAX_MESSAGES`) to disk and reload on startup; decide storage location and whether `/clear` also wipes the persisted file.
 - **C6** — New stats bar rendered above the `InputBar` showing per-translation metrics:
   1. **Elapsed time** — wall-clock duration of the last translation (start on submit, stop on completion/abort).
   2. **Token usage** — tokens spent on the request (prompt + completion; surface `promptTokens`/`completionTokens`/`totalTokens` from the Ollama response metadata — `eval_count`/`prompt_eval_count`).
@@ -59,7 +57,7 @@
 2. **A2 / A3** — cheap CI + coverage safety net for everything after.
 3. **A1** — resolve the sorting decision (low urgency).
 4. **C1 / C2 / C5** — runtime config is the most-requested UX gap and unblocks C5.
-5. **C3 / C4** — larger UX features, sequenced last.
+5. **C3** — larger UX feature, sequenced last.
 
 ## History
 
@@ -69,4 +67,5 @@
 - 2026-07-05 — C1/C2/C5 done: runtime `/model` + `/temp` commands over a mutable config + `LlmModelService.setModel`/`setTemperature` rebuild; settings bar shows model @ temp. Suite 63 → 77, `verify` green. C3 (streaming) and C4 (persistence) remain.
 - 2026-07-05 — C6 added (todo): a stats bar above the input showing per-translation elapsed time, token usage, and tokens/second, sourced from ChatOllama response metadata. Interacts with C3 (live tok/s if streaming lands first).
 - 2026-07-05 — C6 done: `translate` returns `{ text, stats }` (`TranslationStats`: elapsed, prompt/completion/total tokens, tok/s) via a `buildStats` helper (usage_metadata → Ollama response_metadata fallback → 0); `useChat` exposes a `stats` state; new `stats-bar/` module rendered after the first translation between the message list and input. Suite 77 → 81, `verify` green.
-- 2026-07-05 — C3 done: `translate` streams via `chain.stream` + chunk `.concat`, new `onToken` callback emits cleaned accumulated text (replace-based); `useChat` creates an empty bot message and fills it live (`appendMessage`/`updateMessage`). Retry stays whole-attempt (replace-based onToken resets cleanly). Service tests re-mocked around `chain.stream`; suite 81 → 83, `verify` green. C4 (persistence) remains.
+- 2026-07-05 — C3 done: `translate` streams via `chain.stream` + chunk `.concat`, new `onToken` callback emits cleaned accumulated text (replace-based); `useChat` creates an empty bot message and fills it live (`appendMessage`/`updateMessage`). Retry stays whole-attempt (replace-based onToken resets cleanly). Service tests re-mocked around `chain.stream`; suite 81 → 83, `verify` green.
+- 2026-07-05 — C4 (persist chat history) dropped from scope at the user's request; roadmap now 9 items.

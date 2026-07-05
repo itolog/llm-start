@@ -109,7 +109,9 @@ export function useChat({
             signal: controller.signal,
             onToken: (partial) => updateMessage(botMessage.id, partial),
           });
-        updateMessage(botMessage.id, translation);
+        // Fall back to a placeholder so an empty result doesn't leave the card
+        // stuck on the spinner (empty bot text renders the loading indicator).
+        updateMessage(botMessage.id, translation || "(no translation)");
         setStats(translationStats);
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {

@@ -15,7 +15,7 @@ export const App = () => {
   const [toLang, setToLang] = useState("polish");
   const [model, setModel] = useState(config.MODEL);
   const [temp, setTemp] = useState(config.LLM_TEMP);
-  const { messages, isLoading, input, setInput, submit, stats } = useChat({
+  const { messages, input, setInput, submit, stats } = useChat({
     fromLang,
     toLang,
     setFromLang,
@@ -33,7 +33,7 @@ export const App = () => {
         model={model}
         temp={temp}
       />
-      <MessageList messages={messages} isLoading={isLoading} />
+      <MessageList messages={messages} />
       {stats && <StatsBar stats={stats} />}
       <InputBar value={input} onChange={setInput} onSubmit={submit} />
     </Box>

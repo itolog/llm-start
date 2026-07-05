@@ -80,7 +80,7 @@ src/
     header/                          # { header.component.tsx, index.ts }
     settings-bar/                    # { settings-bar.component.tsx, settings-bar.type.ts, index.ts }
     message-list/                    # { message-list.component.tsx, message-list.type.ts, index.ts }
-    message/                         # { message.component.tsx, message.type.ts, index.ts } — MessageItem
+    message/                         # { message.component.tsx, message.type.ts, index.ts } — MessageItem (role-titled card via @mishieck/ink-titled-box)
     loading-indicator/               # { loading-indicator.component.tsx, index.ts }
     input-bar/                       # { input-bar.component.tsx, input-bar.type.ts, index.ts }
   hooks/
@@ -114,6 +114,7 @@ existing plan file in place rather than creating a duplicate.
 
 ## Key Decisions
 
+- **Chat messages render as role-titled cards** — `MessageItem` uses `<TitledBox>` from [`@mishieck/ink-titled-box`](https://github.com/mishieck/ink-titled-box) (`titles={[msg.role]}`, `borderStyle="round"`, per-role `borderColor` — You=magenta, Bot=cyan) to put the role in the border line (`╭ Bot ─╮`); `MessageList` adds `gap={1}` between cards. Ink 7's built-in `Box` has **no** native border title, hence the dependency (bare `ink-titled-box` on npm is a different, 404 package — the real one is the `@mishieck` scope). **Peer caveat:** its peer range is `ink ^6.0.0`, so `bun install` prints an `incorrect peer dependency "ink@7.1.0"` **warning** — but it only imports `Box`/`Text`/`measureElement` (all unchanged in Ink 7) and was smoke-tested rendering correctly on Ink 7.1.0. The title is positioned via `measureElement` + a `useEffect`, so a freshly-mounted card shows the top border without its title for one frame before the measure reflow fills it in (harmless one-tick pop). Added 2026-07-05.
 - **`bun`** is used to run the app (`bun src/index.tsx`) and as the package manager.
 - **`vitest`** is the test runner — use `npm run test`, not `bun test` (different runtime, incompatible APIs).
 - `tsconfig` uses `moduleResolution: "bundler"` + `module: "Preserve"` (`noEmit`), so local imports are written **without** `.js` extensions and resolve `index` files by folder (e.g. `import { config } from "@/config"`). `bun` runs/builds the app, doing the resolution; `tsc` is type-check only.
