@@ -158,8 +158,9 @@ class LlmModelService {
     return { text: cleanText(res.text), stats: buildStats(res, elapsedMs) };
   }
 
-  // Checks the model exists via Ollama's /api/tags listing — no inference, fast.
-  async checkModelAvailable(): Promise<boolean> {
+  // Fetches Ollama's /api/tags listing (installed models) — no inference, fast.
+  // Returns [] on any failure so callers can treat "unreachable" as "empty".
+  private async fetchTags(): Promise<OllamaTag[]> {
     const controller = new AbortController();
     const timeoutId = setTimeout(
       () => controller.abort(),
@@ -169,18 +170,30 @@ class LlmModelService {
       const res = await fetch(`${appConfig.OLLAMA_BASE_URL}/api/tags`, {
         signal: controller.signal,
       });
-      if (!res.ok) return false;
+      if (!res.ok) return [];
       const data = (await res.json()) as { models?: OllamaTag[] };
-      return (data.models ?? []).some(
-        (m) =>
-          modelMatches(config.MODEL, m.name) ||
-          modelMatches(config.MODEL, m.model),
-      );
+      return data.models ?? [];
     } catch {
-      return false;
+      return [];
     } finally {
       clearTimeout(timeoutId);
     }
+  }
+
+  // Checks the configured model exists in the /api/tags listing.
+  async checkModelAvailable(): Promise<boolean> {
+    const tags = await this.fetchTags();
+    return tags.some(
+      (m) =>
+        modelMatches(config.MODEL, m.name) ||
+        modelMatches(config.MODEL, m.model),
+    );
+  }
+
+  // Lists the installed model tags (e.g. "gemma3:4b") for the model picker.
+  async listModels(): Promise<string[]> {
+    const tags = await this.fetchTags();
+    return tags.map((m) => m.name);
   }
 }
 

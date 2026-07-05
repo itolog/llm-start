@@ -5,14 +5,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UseChatOptions } from "./use-chat.type";
 
 // Shared mocks, hoisted so the vi.mock factories below can close over them.
-const { mockExit, mockTranslate, mockCheckModel, mockSetModel, mockSetTemp } =
-  vi.hoisted(() => ({
-    mockExit: vi.fn(),
-    mockTranslate: vi.fn(),
-    mockCheckModel: vi.fn(),
-    mockSetModel: vi.fn(),
-    mockSetTemp: vi.fn(),
-  }));
+const {
+  mockExit,
+  mockTranslate,
+  mockCheckModel,
+  mockSetModel,
+  mockSetTemp,
+  mockListModels,
+} = vi.hoisted(() => ({
+  mockExit: vi.fn(),
+  mockTranslate: vi.fn(),
+  mockCheckModel: vi.fn(),
+  mockSetModel: vi.fn(),
+  mockSetTemp: vi.fn(),
+  mockListModels: vi.fn(),
+}));
 
 vi.mock("ink", () => ({ useApp: () => ({ exit: mockExit }) }));
 // The service encapsulates the chain, timeout, retry and cleaning; the hook
@@ -23,6 +30,7 @@ vi.mock("@/services/llm-model", () => ({
     checkModelAvailable: mockCheckModel,
     setModel: mockSetModel,
     setTemperature: mockSetTemp,
+    listModels: mockListModels,
   },
 }));
 
@@ -199,6 +207,51 @@ describe("useChat", () => {
     expect(mockCheckModel).toHaveBeenCalledTimes(1); // re-verified after switch
     expect(mockTranslate).not.toHaveBeenCalled();
     expect(texts(result)).toContain("Model changed to: llama3");
+  });
+
+  it("opens the model picker on bare /model, then applies a selection", async () => {
+    mockListModels.mockResolvedValue(["gemma3:4b", "llama3"]);
+    const { result, setModel } = setup();
+    mockCheckModel.mockClear(); // ignore the mount-time check
+
+    await submitText(result, "/model");
+
+    expect(mockListModels).toHaveBeenCalledTimes(1);
+    expect(result.current.modelItems).toEqual(["gemma3:4b", "llama3"]);
+    expect(mockSetModel).not.toHaveBeenCalled(); // nothing applied yet
+
+    await act(async () => {
+      await result.current.selectModel("llama3");
+    });
+
+    expect(mockSetModel).toHaveBeenCalledWith("llama3");
+    expect(setModel).toHaveBeenCalledWith("llama3");
+    expect(mockCheckModel).toHaveBeenCalledTimes(1); // re-verified after switch
+    expect(result.current.modelItems).toBeNull(); // picker closed
+    expect(texts(result)).toContain("Model changed to: llama3");
+  });
+
+  it("cancelModelPicker closes the picker without applying a model", async () => {
+    mockListModels.mockResolvedValue(["gemma3:4b"]);
+    const { result } = setup();
+
+    await submitText(result, "/model");
+    expect(result.current.modelItems).toEqual(["gemma3:4b"]);
+
+    act(() => result.current.cancelModelPicker());
+
+    expect(result.current.modelItems).toBeNull();
+    expect(mockSetModel).not.toHaveBeenCalled();
+  });
+
+  it("reports when no models are installed instead of opening the picker", async () => {
+    mockListModels.mockResolvedValue([]);
+    const { result } = setup();
+
+    await submitText(result, "/model");
+
+    expect(result.current.modelItems).toBeNull();
+    expect(texts(result).some((t) => t.includes("No models found"))).toBe(true);
   });
 
   it("routes /temp to the service and state", async () => {

@@ -118,16 +118,16 @@ describe("parseCommand", () => {
       });
     });
 
-    it("returns error for empty argument after prefix", () => {
-      const result = parseCommand("/model ");
-      expect(result.type).toBe("error");
-      if (result.type === "error") {
-        expect(result.message).toMatch(/model/);
-      }
+    it("opens the model picker for bare /model", () => {
+      expect(parseCommand("/model")).toEqual({ type: "models" });
     });
 
-    it("returns error for /model with no space", () => {
-      expect(parseCommand("/model").type).toBe("error");
+    it("opens the picker for /model with only trailing space (no argument)", () => {
+      expect(parseCommand("/model ")).toEqual({ type: "models" });
+    });
+
+    it("is case-insensitive for the bare picker command", () => {
+      expect(parseCommand("/MODEL")).toEqual({ type: "models" });
     });
   });
 

@@ -25,6 +25,8 @@ export function useChat({
   const [isLoading, setIsLoading] = useState(false);
   const [input, setInput] = useState("");
   const [stats, setStats] = useState<TranslationStats | null>(null);
+  // Non-null while the model picker is open (holds the installed model tags).
+  const [modelItems, setModelItems] = useState<string[] | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const modelAvailableRef = useRef<boolean | null>(null);
@@ -80,6 +82,28 @@ export function useChat({
   const clear = useCallback(() => {
     setMessages([WELCOME_MESSAGE]);
   }, []);
+
+  // Switches the active model (shared by `/model <name>` and the picker).
+  const applyModel = useCallback(
+    async (model: string) => {
+      llmModelService.setModel(model);
+      setModel(model);
+      addMessage("Bot", `Model changed to: ${model}`);
+      await verifyModel();
+    },
+    [setModel, addMessage, verifyModel],
+  );
+
+  // Picker selection: close it, then apply the chosen model.
+  const selectModel = useCallback(
+    async (model: string) => {
+      setModelItems(null);
+      await applyModel(model);
+    },
+    [applyModel],
+  );
+
+  const cancelModelPicker = useCallback(() => setModelItems(null), []);
 
   const handleTranslate = useCallback(
     async (text: string) => {
@@ -147,11 +171,17 @@ export function useChat({
         setToLang(lang);
         addMessage("Bot", `Target language changed to: ${lang}`);
       })
-      .with({ type: "model" }, async ({ model }) => {
-        llmModelService.setModel(model);
-        setModel(model);
-        addMessage("Bot", `Model changed to: ${model}`);
-        await verifyModel();
+      .with({ type: "model" }, ({ model }) => applyModel(model))
+      .with({ type: "models" }, async () => {
+        const items = await llmModelService.listModels();
+        if (items.length === 0) {
+          addMessage(
+            "Bot",
+            "No models found. Pull one first: ollama pull <name>",
+          );
+          return;
+        }
+        setModelItems(items);
       })
       .with({ type: "temp" }, ({ temp }) => {
         llmModelService.setTemperature(temp);
@@ -170,12 +200,22 @@ export function useChat({
     clear,
     exit,
     handleTranslate,
+    applyModel,
     setFromLang,
     setToLang,
-    setModel,
     setTemp,
-    verifyModel,
   ]);
 
-  return { messages, isLoading, input, setInput, submit, clear, stats };
+  return {
+    messages,
+    isLoading,
+    input,
+    setInput,
+    submit,
+    clear,
+    stats,
+    modelItems,
+    selectModel,
+    cancelModelPicker,
+  };
 }

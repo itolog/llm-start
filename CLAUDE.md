@@ -77,12 +77,13 @@ src/
     model-config/                    # { model-config.type.ts (ModelConfig), default-model-config.ts (defaultModelConfig — MODEL, LLM_TEMP), index.ts }
     app-config/                      # { app-config.type.ts (AppConfig), app-config.ts (appConfig — OLLAMA_BASE_URL, LLM_TIMEOUT_MS, MAX_MESSAGES, MODEL_CHECK_TIMEOUT_MS), index.ts }
   components/
-    header/                          # { header.component.tsx, index.ts }
+    header/                          # { header.component.tsx, index.ts } — gradient BigText banner (ink-gradient + ink-big-text)
     settings-bar/                    # { settings-bar.component.tsx, settings-bar.type.ts, index.ts }
     message-list/                    # { message-list.component.tsx, message-list.type.ts, index.ts }
     message/                         # { message.component.tsx, message.type.ts, index.ts } — MessageItem (role-titled card via @mishieck/ink-titled-box)
     loading-indicator/               # { loading-indicator.component.tsx, index.ts }
     input-bar/                       # { input-bar.component.tsx, input-bar.type.ts, index.ts }
+    model-picker/                    # { model-picker.component.tsx, model-picker.type.ts, index.ts } — ink-select-input list, shown in place of InputBar for bare /model
   hooks/
     use-chat/                        # { use-chat.hook.ts, use-chat.type.ts, index.ts } — messages, submit, abort, translate
   types/
@@ -91,7 +92,7 @@ src/
     parse-command/                   # { parse-command.util.ts, parse-command.type.ts (Command), parse-command.test.ts, index.ts }
   services/
     llm-model/
-      llm-model.service.ts           # LlmModelService class (owns ChatOllama + chain) exported as llmModelService singleton — translate() + checkModelAvailable()
+      llm-model.service.ts           # LlmModelService class (owns ChatOllama + chain) exported as llmModelService singleton — translate() + checkModelAvailable() + listModels() (both via a shared private fetchTags())
       llm-model.type.ts              # OllamaTag, TranslateParams
       llm-model.test.ts
       llm-prompt.ts                  # ChatPromptTemplate (system prompt)
@@ -121,7 +122,7 @@ existing plan file in place rather than creating a duplicate.
 - **Path alias `@/*` → `src/*`** (`tsconfig` `paths`). **Cross-module** imports use the alias (`import { useChat } from "@/hooks/use-chat"`); **intra-module** imports stay relative (`./header.component`, `./header.type`) — a module referencing its own files does not go through the alias. `bun` (run + `--compile`) reads the alias from `tsconfig` natively; `tsc` too. `vitest` does **not** read `tsconfig` `paths`, so it is mirrored via `resolve.alias` (`"@/"` → `src/`) in `vitest.config.ts`.
 - JSX target is `"react"` (classic runtime), not `"react-jsx"`, because Ink uses React but not the new JSX transform.
 - The translation chain (`prompt.pipe(llm)`) is created once in the `LlmModelService` constructor in `services/llm-model/llm-model.service.ts` — not per request. The service is exported as a singleton `llmModelService` and encapsulates the request orchestration (timeout, abort, retry, text cleaning); `useChat` only owns the per-submit `AbortController` and calls `llmModelService.translate(...)`.
-- In-app commands (`/from`, `/to`, `/clear`, `/help`, `/exit`) are parsed by `parseCommand()` and never sent to Ollama.
+- In-app commands (`/from`, `/to`, `/model`, `/temp`, `/clear`, `/help`, `/exit`) are parsed by `parseCommand()` and never sent to Ollama. **Bare `/model`** (no argument) returns `{ type: "models" }` → `useChat` fetches `llmModelService.listModels()` and opens the `ModelPicker` (rendered in place of the `InputBar` while `modelItems` is non-null; Enter applies via the shared `applyModel`, Esc cancels). `/model <name>` still switches directly. The `Header` is a gradient `BigText` banner via **ink-gradient** (`name="vice"`) + **ink-big-text** (`font="tiny"`, `space={false}`); both peer-satisfy Ink 7 (`ink >=6`/`>=4`), unlike `@mishieck/ink-titled-box`. Added 2026-07-05.
 - `AbortController` is created per submit and passed to `chain.invoke`; timeout also calls `controller.abort()` to close the HTTP connection to Ollama.
 - `withRetry` does not retry `AbortError` — user cancellation is intentional and should not be retried.
 - **Linting uses [Oxc](https://oxc.rs/) (`oxlint`)** — config in `.oxlintrc.json` (`ignorePatterns: ["dist/**"]`, TS + React/React-Hooks correctness rules, `react-hooks/exhaustive-deps` enabled). ESLint was removed. **Circular-dependency detection** is oxlint's `import/no-cycle` rule (`"error"`) — the `import` plugin is enabled in `plugins`, and oxlint auto-reads the root `tsconfig.json` to resolve the `@/*` alias, so cycles across both relative and `@/` imports are caught. No `--import-plugin`/`--tsconfig` CLI flags or `import/resolver` settings are needed; a separate tool (madge/dpdm) is therefore unnecessary. Only `no-cycle` is enabled from the import plugin — the rest of its rules stay off. Added 2026-07-05. **Formatting uses [`oxfmt`](https://oxc.rs/) (Oxc formatter)** — config in `.oxfmtrc.json` (migrated from `.prettierrc` via `oxfmt --migrate=prettier`, so the same style: 2-space indent, double quotes, semicolons, trailing commas, `printWidth: 80`). Prettier was removed. **Import sorting is done by oxfmt's `sortImports`** (not oxlint): imports are grouped by path — `react` (a `customGroups` entry, always first) → `builtin` → `external` → `internal` (`@/*`) → relative (`parent`/`sibling`/`index`) — with a blank line between groups and alphabetical order within each group. It is applied automatically on `oxfmt --write` (so the pre-commit `format` job re-sorts + re-stages; no manual step). `oxlint`'s `sort-imports` rule is intentionally **not** used — its declaration reordering is not auto-fixable, whereas oxfmt's is. Note `customGroups` `elementNamePattern` takes **glob** patterns, not regex (`"react"`, not `"^react$"`). Markdown **and YAML** are excluded (`**/*.md`, `*.yml`/`*.yaml` + `**/*.yml`/`**/*.yaml` in `ignorePatterns`) because oxfmt 0.56 throws `DataCloneError` on them — re-enable once fixed upstream. (YAML matters since `lefthook.yml` lives at the repo root; note the root-level `*.yml` pattern is needed because `**/*.yml` alone does not match files in the repo root.)

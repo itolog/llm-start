@@ -281,4 +281,37 @@ describe("llmModelService", () => {
       await expect(llmModelService.checkModelAvailable()).resolves.toBe(false);
     });
   });
+
+  describe("listModels", () => {
+    it("returns the installed model tag names", async () => {
+      stubFetch(async () => ({
+        ok: true,
+        json: async () => ({
+          models: [
+            { name: "gemma3:4b", model: "gemma3:4b" },
+            { name: "llama3:latest", model: "llama3:latest" },
+          ],
+        }),
+      }));
+
+      await expect(llmModelService.listModels()).resolves.toEqual([
+        "gemma3:4b",
+        "llama3:latest",
+      ]);
+    });
+
+    it("returns [] on a non-ok response", async () => {
+      stubFetch(async () => ({ ok: false, json: async () => ({}) }));
+
+      await expect(llmModelService.listModels()).resolves.toEqual([]);
+    });
+
+    it("returns [] when the request throws", async () => {
+      stubFetch(async () => {
+        throw new Error("ECONNREFUSED");
+      });
+
+      await expect(llmModelService.listModels()).resolves.toEqual([]);
+    });
+  });
 });

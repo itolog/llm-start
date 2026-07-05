@@ -1,9 +1,4 @@
-import {
-  USAGE_FROM,
-  USAGE_MODEL,
-  USAGE_TEMP,
-  USAGE_TO,
-} from "./parse-command.model";
+import { USAGE_FROM, USAGE_TEMP, USAGE_TO } from "./parse-command.model";
 import { Command } from "./parse-command.type";
 
 export function parseCommand(input: string): Command {
@@ -47,15 +42,15 @@ export function parseCommand(input: string): Command {
   }
 
   if (lower.startsWith("/model ")) {
+    // Input is already trimmed, so a trailing "/model " with no argument
+    // collapses to bare "/model" (the picker) below — the model is non-empty.
     const model = trimmed.slice(7).trim();
-    if (!model) {
-      return { type: "error", message: USAGE_MODEL };
-    }
     return { type: "model", model };
   }
 
+  // Bare `/model` (or "/model " with no argument) opens the interactive picker.
   if (lower === "/model") {
-    return { type: "error", message: USAGE_MODEL };
+    return { type: "models" };
   }
 
   if (lower.startsWith("/temp ")) {
