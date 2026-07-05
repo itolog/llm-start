@@ -1,6 +1,6 @@
 # Improvements & Development Roadmap
 
-> Progress: 2/9 · Created: 2026-07-05 · Updated: 2026-07-05
+> Progress: 5/10 · Created: 2026-07-05 · Updated: 2026-07-05
 > Branch: `main` · Scope: DX tooling, test coverage, and feature roadmap for the TUI translator
 
 ## A. Tooling & DX
@@ -31,17 +31,23 @@
 
 | ID | Task | Status | Date |
 | --- | --- | --- | --- |
-| C1 | Runtime `/model <name>` command | ⬜ todo | — |
-| C2 | Runtime `/temp <value>` command | ⬜ todo | — |
+| C1 | Runtime `/model <name>` command | ✅ done | 2026-07-05 |
+| C2 | Runtime `/temp <value>` command | ✅ done | 2026-07-05 |
 | C3 | Stream translation output token-by-token | ⬜ todo | — |
 | C4 | Persist chat history across sessions | ⬜ todo | — |
-| C5 | Show active model/temperature in the settings bar | ⬜ todo | — |
+| C5 | Show active model/temperature in the settings bar | ✅ done | 2026-07-05 |
+| C6 | Add a stats bar above the input (elapsed time, token usage, tok/s) | ⬜ todo | — |
 
 ### Notes
 
-- **C1 / C2** — `default-config.ts` already anticipates these ("runtime overrides (e.g. /model, /temp commands) will layer on top of this later"). Needs a runtime-mutable config layer over `defaultConfig`, re-instantiating (or reconfiguring) `LlmModelService` when `MODEL`/`LLM_TEMP` change, plus new entries in `parseCommand` + the `match` in `useChat`. Re-run `checkModelAvailable()` after a `/model` switch.
+- **C1 / C2 / C5** — Done. `config` is now a mutable copy of `defaultConfig`; `LlmModelService` gained `setModel`/`setTemperature` that mutate config and `rebuild()` the `ChatOllama` + chain. `parseCommand` handles `/model <name>` and `/temp <0-2>` (range-validated) → new `Command` variants; `useChat` applies them via the service + React setters, and re-runs `verifyModel()` after a `/model` switch (extracted from the mount effect). `App` holds `model`/`temp` state (seeded from `config`) and `SettingsBar` renders `… │ {model} @ temp {temp}`. Tests: +6 parseCommand (`/model`, `/temp`), +2 useChat handlers, +2 service reconfiguration (config restored to avoid cross-test leakage); suite 63 → 77.
 - **C3** — Replace `chain.invoke` with `chain.stream` in the service, surfacing partial text to the hook (e.g. a callback or async iterator) so the bot message fills in live. Keep timeout/abort/retry semantics; retry-mid-stream needs a decision.
 - **C4** — Persist messages (bounded by `MAX_MESSAGES`) to disk and reload on startup; decide storage location and whether `/clear` also wipes the persisted file.
+- **C6** — New stats bar rendered above the `InputBar` showing per-translation metrics:
+  1. **Elapsed time** — wall-clock duration of the last translation (start on submit, stop on completion/abort).
+  2. **Token usage** — tokens spent on the request (prompt + completion; surface `promptTokens`/`completionTokens`/`totalTokens` from the Ollama response metadata — `eval_count`/`prompt_eval_count`).
+  3. **Tokens/second** — generation throughput (`completionTokens / elapsedSeconds`), and possibly other derived metrics (e.g. total-tokens counter across the session).
+  Source the metrics from ChatOllama response metadata (`response.usage_metadata` / `response.response_metadata` — LangChain surfaces Ollama's `eval_count`, `eval_duration`, `prompt_eval_count`). Decide: where metrics live (extend `LlmModelService.translate` to return usage alongside text, or expose via callback), how they flow to `App`/the bar (new state vs. `useChat` return), and whether the bar is always visible or only after the first translation. **Note the interaction with C3 (streaming):** if streaming lands first, tok/s can update live during the stream; otherwise compute once on completion. Placement is a new `stats-bar/` module folder (mirrors `settings-bar/`), rendered between the message list and `InputBar`.
 
 ## Execution order
 
@@ -56,3 +62,5 @@
 - 2026-07-05 — Plan created after the `llm-model` → `services/llm-model` service refactor; captures the deferred `package.json` sorting decision (A1) as `💬 discuss`.
 - 2026-07-05 — B1 done: added 5 orchestration tests for `LlmModelService.translate` (chain mocked, fake timers); suite 53 → 58 tests, `verify` green.
 - 2026-07-05 — A3 done: coverage `thresholds` + view/prompt `exclude`s in `vitest.config.ts`; added 5 `checkModelAvailable` tests (58 → 63). Gate kept out of the bun `verify`/pre-push (v8 coverage yields 0 tests under bun); enforcement deferred to CI (A2) under node. `verify` stays bun-native (lint + `bun run test`).
+- 2026-07-05 — C1/C2/C5 done: runtime `/model` + `/temp` commands over a mutable config + `LlmModelService.setModel`/`setTemperature` rebuild; settings bar shows model @ temp. Suite 63 → 77, `verify` green. C3 (streaming) and C4 (persistence) remain.
+- 2026-07-05 — C6 added (todo): a stats bar above the input showing per-translation elapsed time, token usage, and tokens/second, sourced from ChatOllama response metadata. Interacts with C3 (live tok/s if streaming lands first).

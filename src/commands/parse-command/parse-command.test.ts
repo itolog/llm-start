@@ -103,6 +103,66 @@ describe("parseCommand", () => {
     });
   });
 
+  describe("/model", () => {
+    it("parses a valid /model command", () => {
+      expect(parseCommand("/model llama3")).toEqual({
+        type: "model",
+        model: "llama3",
+      });
+    });
+
+    it("is case-insensitive on the prefix, preserves the model casing", () => {
+      expect(parseCommand("/MODEL Gemma3:4B")).toEqual({
+        type: "model",
+        model: "Gemma3:4B",
+      });
+    });
+
+    it("returns error for empty argument after prefix", () => {
+      const result = parseCommand("/model ");
+      expect(result.type).toBe("error");
+      if (result.type === "error") {
+        expect(result.message).toMatch(/model/);
+      }
+    });
+
+    it("returns error for /model with no space", () => {
+      expect(parseCommand("/model").type).toBe("error");
+    });
+  });
+
+  describe("/temp", () => {
+    it("parses a valid /temp command", () => {
+      expect(parseCommand("/temp 0.7")).toEqual({ type: "temp", temp: 0.7 });
+    });
+
+    it("accepts the boundary values 0 and 2", () => {
+      expect(parseCommand("/temp 0")).toEqual({ type: "temp", temp: 0 });
+      expect(parseCommand("/temp 2")).toEqual({ type: "temp", temp: 2 });
+    });
+
+    it("is case-insensitive on the prefix", () => {
+      expect(parseCommand("/TEMP 1")).toEqual({ type: "temp", temp: 1 });
+    });
+
+    it("returns error for a non-numeric argument", () => {
+      const result = parseCommand("/temp hot");
+      expect(result.type).toBe("error");
+      if (result.type === "error") {
+        expect(result.message).toMatch(/temp/);
+      }
+    });
+
+    it("returns error for out-of-range values", () => {
+      expect(parseCommand("/temp -0.1").type).toBe("error");
+      expect(parseCommand("/temp 2.1").type).toBe("error");
+    });
+
+    it("returns error for /temp with no space", () => {
+      expect(parseCommand("/temp").type).toBe("error");
+    });
+  });
+
   describe("/clear", () => {
     it("returns clear command", () => {
       expect(parseCommand("/clear")).toEqual({ type: "clear" });

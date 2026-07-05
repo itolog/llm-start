@@ -16,15 +16,28 @@ const WELCOME_MESSAGE: Message = createMessage(
   "Bot",
   [
     "Hello! I am a TUI translator.",
-    "Commands: /from <lang>, /to <lang>, /clear, /help, /exit",
+    "Commands: /from <lang>, /to <lang>, /model <name>, /temp <0-2>, /clear, /help, /exit",
   ].join(" "),
 );
+
+const HELP_MESSAGE = [
+  "Commands:",
+  "/from <lang> — set source language",
+  "/to <lang> — set target language",
+  "/model <name> — switch the Ollama model",
+  "/temp <0-2> — set the sampling temperature",
+  "/clear — clear history",
+  "/help — show this help",
+  "/exit (or /quit, /q) — quit",
+].join("\n");
 
 export function useChat({
   fromLang,
   toLang,
   setFromLang,
   setToLang,
+  setModel,
+  setTemp,
 }: UseChatOptions) {
   const { exit } = useApp();
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
@@ -50,19 +63,20 @@ export function useChat({
     };
   }, []);
 
-  useEffect(() => {
-    const checkModel = async () => {
-      const available = await llmModelService.checkModelAvailable();
-      modelAvailableRef.current = available;
-      if (!available) {
-        addMessage(
-          "Bot",
-          `Error: Model "${config.MODEL}" is not available. Please pull the model first using: ollama pull ${config.MODEL}`,
-        );
-      }
-    };
-    checkModel();
+  const verifyModel = useCallback(async () => {
+    const available = await llmModelService.checkModelAvailable();
+    modelAvailableRef.current = available;
+    if (!available) {
+      addMessage(
+        "Bot",
+        `Error: Model "${config.MODEL}" is not available. Please pull the model first using: ollama pull ${config.MODEL}`,
+      );
+    }
   }, [addMessage]);
+
+  useEffect(() => {
+    verifyModel();
+  }, [verifyModel]);
 
   const clear = useCallback(() => {
     setMessages([WELCOME_MESSAGE]);
@@ -125,13 +139,19 @@ export function useChat({
         setToLang(lang);
         addMessage("Bot", `Target language changed to: ${lang}`);
       })
+      .with({ type: "model" }, async ({ model }) => {
+        llmModelService.setModel(model);
+        setModel(model);
+        addMessage("Bot", `Model changed to: ${model}`);
+        await verifyModel();
+      })
+      .with({ type: "temp" }, ({ temp }) => {
+        llmModelService.setTemperature(temp);
+        setTemp(temp);
+        addMessage("Bot", `Temperature changed to: ${temp}`);
+      })
       .with({ type: "clear" }, clear)
-      .with({ type: "help" }, () =>
-        addMessage(
-          "Bot",
-          "Commands:\n/from <lang> — set source language\n/to <lang> — set target language\n/clear — clear history\n/help — show this help\n/exit (or /quit, /q) — quit",
-        ),
-      )
+      .with({ type: "help" }, () => addMessage("Bot", HELP_MESSAGE))
       .with({ type: "exit" }, () => exit())
       .with({ type: "translate" }, ({ text }) => handleTranslate(text))
       .exhaustive();
@@ -144,6 +164,9 @@ export function useChat({
     handleTranslate,
     setFromLang,
     setToLang,
+    setModel,
+    setTemp,
+    verifyModel,
   ]);
 
   return { messages, isLoading, input, setInput, submit, clear };

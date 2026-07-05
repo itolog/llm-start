@@ -52,6 +52,43 @@ export function parseCommand(input: string): Command {
     };
   }
 
+  if (lower.startsWith("/model ")) {
+    const model = trimmed.slice(7).trim();
+    if (!model) {
+      return {
+        type: "error",
+        message: "Usage: /model <name> — argument is empty.",
+      };
+    }
+    return { type: "model", model };
+  }
+
+  if (lower === "/model") {
+    return {
+      type: "error",
+      message: "Usage: /model <name> — argument is empty.",
+    };
+  }
+
+  if (lower.startsWith("/temp ")) {
+    const raw = trimmed.slice(6).trim();
+    const temp = Number(raw);
+    if (!raw || Number.isNaN(temp) || temp < 0 || temp > 2) {
+      return {
+        type: "error",
+        message: "Usage: /temp <0-2> — expected a number between 0 and 2.",
+      };
+    }
+    return { type: "temp", temp };
+  }
+
+  if (lower === "/temp") {
+    return {
+      type: "error",
+      message: "Usage: /temp <0-2> — expected a number between 0 and 2.",
+    };
+  }
+
   if (trimmed.startsWith("/")) {
     return {
       type: "error",

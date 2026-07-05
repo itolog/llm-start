@@ -118,6 +118,31 @@ describe("llmModelService", () => {
     await expect(promise).rejects.toMatchObject({ name: "AbortError" });
   });
 
+  describe("runtime reconfiguration", () => {
+    it("setModel updates the active model and keeps translating", async () => {
+      const original = config.MODEL;
+      try {
+        llmModelService.setModel("llama3");
+        expect(config.MODEL).toBe("llama3");
+
+        mockInvoke.mockResolvedValue({ text: "ok" });
+        await expect(llmModelService.translate(params)).resolves.toBe("ok");
+      } finally {
+        llmModelService.setModel(original);
+      }
+    });
+
+    it("setTemperature updates the active temperature", () => {
+      const original = config.LLM_TEMP;
+      try {
+        llmModelService.setTemperature(0.9);
+        expect(config.LLM_TEMP).toBe(0.9);
+      } finally {
+        llmModelService.setTemperature(original);
+      }
+    });
+  });
+
   describe("checkModelAvailable", () => {
     it("returns true when the configured model is listed", async () => {
       stubFetch(async () => ({

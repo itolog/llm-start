@@ -5,11 +5,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UseChatOptions } from "./use-chat.type";
 
 // Shared mocks, hoisted so the vi.mock factories below can close over them.
-const { mockExit, mockTranslate, mockCheckModel } = vi.hoisted(() => ({
-  mockExit: vi.fn(),
-  mockTranslate: vi.fn(),
-  mockCheckModel: vi.fn(),
-}));
+const { mockExit, mockTranslate, mockCheckModel, mockSetModel, mockSetTemp } =
+  vi.hoisted(() => ({
+    mockExit: vi.fn(),
+    mockTranslate: vi.fn(),
+    mockCheckModel: vi.fn(),
+    mockSetModel: vi.fn(),
+    mockSetTemp: vi.fn(),
+  }));
 
 vi.mock("ink", () => ({ useApp: () => ({ exit: mockExit }) }));
 // The service encapsulates the chain, timeout, retry and cleaning; the hook
@@ -18,6 +21,8 @@ vi.mock("@/services/llm-model", () => ({
   llmModelService: {
     translate: mockTranslate,
     checkModelAvailable: mockCheckModel,
+    setModel: mockSetModel,
+    setTemperature: mockSetTemp,
   },
 }));
 
@@ -26,15 +31,19 @@ import { useChat } from "./use-chat.hook";
 function setup(overrides: Partial<UseChatOptions> = {}) {
   const setFromLang = vi.fn();
   const setToLang = vi.fn();
+  const setModel = vi.fn();
+  const setTemp = vi.fn();
   const options: UseChatOptions = {
     fromLang: "english",
     toLang: "polish",
     setFromLang,
     setToLang,
+    setModel,
+    setTemp,
     ...overrides,
   };
   const utils = renderHook(() => useChat(options));
-  return { ...utils, setFromLang, setToLang };
+  return { ...utils, setFromLang, setToLang, setModel, setTemp };
 }
 
 // Drive one submit: set the input, then call submit.
@@ -134,6 +143,30 @@ describe("useChat", () => {
 
     expect(setToLang).toHaveBeenCalledWith("spanish");
     expect(texts(result)).toContain("Target language changed to: spanish");
+  });
+
+  it("routes /model to the service, state, and re-checks availability", async () => {
+    const { result, setModel } = setup();
+    mockCheckModel.mockClear(); // ignore the mount-time check
+
+    await submitText(result, "/model llama3");
+
+    expect(mockSetModel).toHaveBeenCalledWith("llama3");
+    expect(setModel).toHaveBeenCalledWith("llama3");
+    expect(mockCheckModel).toHaveBeenCalledTimes(1); // re-verified after switch
+    expect(mockTranslate).not.toHaveBeenCalled();
+    expect(texts(result)).toContain("Model changed to: llama3");
+  });
+
+  it("routes /temp to the service and state", async () => {
+    const { result, setTemp } = setup();
+
+    await submitText(result, "/temp 0.7");
+
+    expect(mockSetTemp).toHaveBeenCalledWith(0.7);
+    expect(setTemp).toHaveBeenCalledWith(0.7);
+    expect(mockTranslate).not.toHaveBeenCalled();
+    expect(texts(result)).toContain("Temperature changed to: 0.7");
   });
 
   it("quits on /exit", async () => {

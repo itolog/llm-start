@@ -25,15 +25,34 @@ function modelMatches(configured: string, tag: string): boolean {
 // Stateful wrapper around Ollama: owns the chat model + translation chain and
 // encapsulates the request orchestration (timeout, abort, retry, cleanup).
 class LlmModelService {
-  private readonly llm: ChatOllama;
-  private readonly chain: Runnable;
+  private llm!: ChatOllama;
+  private chain!: Runnable;
 
   constructor() {
+    this.rebuild();
+  }
+
+  // (Re)builds the chat model and translation chain from the current config.
+  // Called on construction and whenever MODEL/LLM_TEMP change at runtime.
+  private rebuild(): void {
     this.llm = new ChatOllama({
       model: config.MODEL,
       temperature: config.LLM_TEMP,
     });
     this.chain = prompt.pipe(this.llm);
+  }
+
+  // Switches the active model (e.g. the /model command). Callers should re-run
+  // checkModelAvailable() afterwards — the new model may not be pulled.
+  setModel(model: string): void {
+    config.MODEL = model;
+    this.rebuild();
+  }
+
+  // Updates the sampling temperature (e.g. the /temp command).
+  setTemperature(temperature: number): void {
+    config.LLM_TEMP = temperature;
+    this.rebuild();
   }
 
   // Translates `text`, returning the cleaned translation. Retries once on
