@@ -18,7 +18,7 @@
   "main": "src/index.tsx",
   "scripts": {
     "start": "bun src/index.tsx",
-    "start:deps-graph": "skott src/index.tsx --tsconfig=tsconfig.json",
+    "start:deps-graph": "skott src/index.tsx --tsconfig=tsconfig.json --no-trackTypeOnlyDependencies",
     "dev": "bun --watch src/index.tsx",
     "build": "bun build src/index.tsx --compile --minify --outfile dist/lang-app",
     "lint": "conc --timings -c \"auto\" \"bun:lint:*\"",
