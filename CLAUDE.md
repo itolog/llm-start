@@ -90,11 +90,12 @@ src/
     message.type.ts                  # Message type (plain type file, not a module)
   commands/
     parse-command/                   # { parse-command.util.ts, parse-command.type.ts (Command), parse-command.test.ts, index.ts }
-  llm-model/
-    llm-model.service.ts             # ChatOllama instance + translationChain (module-level) + checkModelAvailable
-    llm-model.type.ts                # OllamaTag
-    llm-model.test.ts
-    llm-prompt.ts                    # ChatPromptTemplate (system prompt)
+  services/
+    llm-model/
+      llm-model.service.ts           # LlmModelService class (owns ChatOllama + chain) exported as llmModelService singleton — translate() + checkModelAvailable()
+      llm-model.type.ts              # OllamaTag, TranslateParams
+      llm-model.test.ts
+      llm-prompt.ts                  # ChatPromptTemplate (system prompt)
     index.ts
   utils/
     clean-text/                      # { clean-text.util.ts, index.ts }
@@ -119,7 +120,7 @@ existing plan file in place rather than creating a duplicate.
 - `tsconfig` uses `moduleResolution: "bundler"` + `module: "Preserve"` (`noEmit`), so local imports are written **without** `.js` extensions and resolve `index` files by folder (e.g. `import { config } from "@/config"`). `bun` runs/builds the app, doing the resolution; `tsc` is type-check only.
 - **Path alias `@/*` → `src/*`** (`tsconfig` `paths`). **Cross-module** imports use the alias (`import { useChat } from "@/hooks/use-chat"`); **intra-module** imports stay relative (`./header.component`, `./header.type`) — a module referencing its own files does not go through the alias. `bun` (run + `--compile`) reads the alias from `tsconfig` natively; `tsc` too. `vitest` does **not** read `tsconfig` `paths`, so it is mirrored via `resolve.alias` (`"@/"` → `src/`) in `vitest.config.ts`.
 - JSX target is `"react"` (classic runtime), not `"react-jsx"`, because Ink uses React but not the new JSX transform.
-- `translationChain` is created once at module level in `llm-model/llm-model.service.ts` — not per request.
+- The translation chain (`prompt.pipe(llm)`) is created once in the `LlmModelService` constructor in `services/llm-model/llm-model.service.ts` — not per request. The service is exported as a singleton `llmModelService` and encapsulates the request orchestration (timeout, abort, retry, text cleaning); `useChat` only owns the per-submit `AbortController` and calls `llmModelService.translate(...)`.
 - In-app commands (`/from`, `/to`, `/clear`, `/help`, `/exit`) are parsed by `parseCommand()` and never sent to Ollama.
 - `AbortController` is created per submit and passed to `chain.invoke`; timeout also calls `controller.abort()` to close the HTTP connection to Ollama.
 - `withRetry` does not retry `AbortError` — user cancellation is intentional and should not be retried.

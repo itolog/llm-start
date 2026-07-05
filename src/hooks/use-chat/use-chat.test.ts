@@ -5,21 +5,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UseChatOptions } from "./use-chat.type";
 
 // Shared mocks, hoisted so the vi.mock factories below can close over them.
-const { mockExit, mockInvoke, mockCheckModel } = vi.hoisted(() => ({
+const { mockExit, mockTranslate, mockCheckModel } = vi.hoisted(() => ({
   mockExit: vi.fn(),
-  mockInvoke: vi.fn(),
+  mockTranslate: vi.fn(),
   mockCheckModel: vi.fn(),
 }));
 
 vi.mock("ink", () => ({ useApp: () => ({ exit: mockExit }) }));
-vi.mock("@/llm-model", () => ({
-  translationChain: { invoke: mockInvoke },
-  checkModelAvailable: mockCheckModel,
-}));
-// Pass-through: retry logic itself is covered in with-retry.test.ts, and this
-// keeps the retry delay / timeout out of the hook tests.
-vi.mock("@/utils/with-retry", () => ({
-  withRetry: (fn: () => Promise<unknown>) => fn(),
+// The service encapsulates the chain, timeout, retry and cleaning; the hook
+// only orchestrates messages, so we mock the service surface directly.
+vi.mock("@/services/llm-model", () => ({
+  llmModelService: {
+    translate: mockTranslate,
+    checkModelAvailable: mockCheckModel,
+  },
 }));
 
 import { useChat } from "./use-chat.hook";
@@ -65,16 +64,20 @@ describe("useChat", () => {
     expect(result.current.isLoading).toBe(false);
   });
 
-  it("translates: adds the user line and the cleaned bot reply", async () => {
-    mockInvoke.mockResolvedValue({ text: "  bonjour  " });
+  it("translates: adds the user line and the bot reply", async () => {
+    mockTranslate.mockResolvedValue("bonjour");
     const { result } = setup();
 
     await submitText(result, "hello");
 
-    expect(mockInvoke).toHaveBeenCalledTimes(1);
-    expect(mockInvoke).toHaveBeenCalledWith(
-      { input_language: "english", output_language: "polish", input: "hello" },
-      expect.objectContaining({ signal: expect.anything() }),
+    expect(mockTranslate).toHaveBeenCalledTimes(1);
+    expect(mockTranslate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "hello",
+        fromLang: "english",
+        toLang: "polish",
+        signal: expect.anything(),
+      }),
     );
     expect(texts(result)).toContain("hello");
     expect(texts(result)).toContain("bonjour");
@@ -85,7 +88,7 @@ describe("useChat", () => {
     const abortError = Object.assign(new Error("aborted"), {
       name: "AbortError",
     });
-    mockInvoke.mockRejectedValue(abortError);
+    mockTranslate.mockRejectedValue(abortError);
     const { result } = setup();
 
     await submitText(result, "hello");
@@ -94,7 +97,7 @@ describe("useChat", () => {
   });
 
   it("surfaces a generic error as an Error message", async () => {
-    mockInvoke.mockRejectedValue(new Error("boom"));
+    mockTranslate.mockRejectedValue(new Error("boom"));
     const { result } = setup();
 
     await submitText(result, "hello");
@@ -103,7 +106,7 @@ describe("useChat", () => {
   });
 
   it("clears history back to the welcome message via /clear", async () => {
-    mockInvoke.mockResolvedValue({ text: "bonjour" });
+    mockTranslate.mockResolvedValue("bonjour");
     const { result } = setup();
 
     await submitText(result, "hello");
@@ -111,7 +114,7 @@ describe("useChat", () => {
 
     await submitText(result, "/clear");
     expect(result.current.messages).toHaveLength(1);
-    expect(mockInvoke).toHaveBeenCalledTimes(1); // /clear is not sent to the LLM
+    expect(mockTranslate).toHaveBeenCalledTimes(1); // /clear is not sent to the LLM
   });
 
   it("routes /from to setFromLang and never calls the LLM", async () => {
@@ -120,7 +123,7 @@ describe("useChat", () => {
     await submitText(result, "/from german");
 
     expect(setFromLang).toHaveBeenCalledWith("german");
-    expect(mockInvoke).not.toHaveBeenCalled();
+    expect(mockTranslate).not.toHaveBeenCalled();
     expect(texts(result)).toContain("Source language changed to: german");
   });
 
@@ -156,7 +159,7 @@ describe("useChat", () => {
 
     await submitText(result, "hello");
 
-    expect(mockInvoke).not.toHaveBeenCalled();
+    expect(mockTranslate).not.toHaveBeenCalled();
     expect(texts(result).some((t) => t.includes("is not available"))).toBe(
       true,
     );
@@ -168,6 +171,6 @@ describe("useChat", () => {
     await submitText(result, "   ");
 
     expect(result.current.messages).toHaveLength(1);
-    expect(mockInvoke).not.toHaveBeenCalled();
+    expect(mockTranslate).not.toHaveBeenCalled();
   });
 });

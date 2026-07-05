@@ -5,12 +5,10 @@ import { match } from "ts-pattern";
 
 import { parseCommand } from "@/commands/parse-command";
 import { config } from "@/config";
-import { LLM_TIMEOUT_MS, MAX_MESSAGES } from "@/constants";
-import { checkModelAvailable, translationChain } from "@/llm-model";
+import { MAX_MESSAGES } from "@/constants";
+import { llmModelService } from "@/services/llm-model";
 import { Message } from "@/types/message.type";
-import { cleanText } from "@/utils/clean-text";
 import { createMessage } from "@/utils/create-message";
-import { withRetry } from "@/utils/with-retry";
 
 import { UseChatOptions } from "./use-chat.type";
 
@@ -54,7 +52,7 @@ export function useChat({
 
   useEffect(() => {
     const checkModel = async () => {
-      const available = await checkModelAvailable();
+      const available = await llmModelService.checkModelAvailable();
       modelAvailableRef.current = available;
       if (!available) {
         addMessage(
@@ -86,26 +84,13 @@ export function useChat({
       abortControllerRef.current = controller;
 
       try {
-        const res = await withRetry(
-          () => {
-            const timeoutId = setTimeout(
-              () => controller.abort(),
-              LLM_TIMEOUT_MS,
-            );
-            return translationChain
-              .invoke(
-                {
-                  input_language: fromLang,
-                  output_language: toLang,
-                  input: text,
-                },
-                { signal: controller.signal },
-              )
-              .finally(() => clearTimeout(timeoutId));
-          },
-          { retries: 1, delayMs: 1000 },
-        );
-        addMessage("Bot", cleanText(res.text));
+        const translation = await llmModelService.translate({
+          text,
+          fromLang,
+          toLang,
+          signal: controller.signal,
+        });
+        addMessage("Bot", translation);
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
           addMessage("Bot", "Request cancelled");
