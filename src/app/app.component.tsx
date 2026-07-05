@@ -4,6 +4,7 @@ import { Box } from "ink";
 
 import { Header } from "@/components/header";
 import { InputBar } from "@/components/input-bar";
+import { LiveTimer } from "@/components/live-timer";
 import { MessageList } from "@/components/message-list";
 import { ModelPicker } from "@/components/model-picker";
 import { SettingsBar } from "@/components/settings-bar";
@@ -18,6 +19,7 @@ export const App = () => {
   const [temp, setTemp] = useState(config.LLM_TEMP);
   const {
     messages,
+    isLoading,
     input,
     setInput,
     submit,
@@ -44,7 +46,7 @@ export const App = () => {
         temp={temp}
       />
       <MessageList messages={messages} />
-      {stats && <StatsBar stats={stats} />}
+      {isLoading ? <LiveTimer /> : stats && <StatsBar stats={stats} />}
       {modelItems ? (
         <ModelPicker
           items={modelItems}

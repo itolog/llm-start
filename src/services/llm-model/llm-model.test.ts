@@ -314,4 +314,44 @@ describe("llmModelService", () => {
       await expect(llmModelService.listModels()).resolves.toEqual([]);
     });
   });
+
+  describe("resolveStartupModel", () => {
+    it("returns 'no-models' when nothing is installed", async () => {
+      stubFetch(async () => ({ ok: true, json: async () => ({ models: [] }) }));
+
+      await expect(llmModelService.resolveStartupModel()).resolves.toEqual({
+        status: "no-models",
+      });
+    });
+
+    it("returns 'ok' when the configured model is installed", async () => {
+      stubFetch(async () => ({
+        ok: true,
+        json: async () => ({
+          models: [{ name: config.MODEL, model: config.MODEL }],
+        }),
+      }));
+
+      await expect(llmModelService.resolveStartupModel()).resolves.toEqual({
+        status: "ok",
+      });
+    });
+
+    it("falls back to the first installed model when the configured one is absent", async () => {
+      stubFetch(async () => ({
+        ok: true,
+        json: async () => ({
+          models: [
+            { name: "llama3:latest", model: "llama3:latest" },
+            { name: "qwen2.5:7b", model: "qwen2.5:7b" },
+          ],
+        }),
+      }));
+
+      await expect(llmModelService.resolveStartupModel()).resolves.toEqual({
+        status: "fallback",
+        model: "llama3:latest",
+      });
+    });
+  });
 });

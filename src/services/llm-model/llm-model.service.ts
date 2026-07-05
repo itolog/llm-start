@@ -6,65 +6,16 @@ import { cleanText } from "@/utils/clean-text";
 import { withRetry } from "@/utils/with-retry";
 
 import {
+  ChainChunk,
+  ChainResponse,
   OllamaTag,
+  StartupModel,
   TranslateParams,
   TranslationResult,
-  TranslationStats,
 } from "./llm-model.type";
 import { prompt } from "./llm-prompt";
-
-// Add the implicit ":latest" tag Ollama applies when a model is pulled without one.
-function modelMatches(configured: string, tag: string): boolean {
-  return (
-    tag === configured ||
-    tag === `${configured}:latest` ||
-    `${tag}:latest` === configured
-  );
-}
-
-// Shape of the chain response we read: `.text` plus token metadata. LangChain
-// surfaces standardized `usage_metadata`; Ollama's raw counts live under
-// `response_metadata` (eval_count / prompt_eval_count) as a fallback.
-interface ChainResponse {
-  text: string;
-  usage_metadata?: {
-    input_tokens?: number;
-    output_tokens?: number;
-    total_tokens?: number;
-  };
-  response_metadata?: {
-    prompt_eval_count?: number;
-    eval_count?: number;
-  };
-}
-
-// A streamed message chunk: a ChainResponse that also aggregates with the next
-// chunk via `.concat` (AIMessageChunk's contract).
-type ChainChunk = ChainResponse & {
-  concat(next: ChainChunk): ChainChunk;
-};
-
-// Derives the stats-bar metrics from a chain response and the measured elapsed
-// time, preferring LangChain's usage_metadata and falling back to Ollama's raw
-// eval counts.
-function buildStats(res: ChainResponse, elapsedMs: number): TranslationStats {
-  const usage = res.usage_metadata;
-  const meta = res.response_metadata;
-  const promptTokens = usage?.input_tokens ?? meta?.prompt_eval_count ?? 0;
-  const completionTokens = usage?.output_tokens ?? meta?.eval_count ?? 0;
-  const totalTokens = usage?.total_tokens ?? promptTokens + completionTokens;
-  const elapsedSeconds = elapsedMs / 1000;
-  const tokensPerSecond =
-    elapsedSeconds > 0 ? completionTokens / elapsedSeconds : 0;
-
-  return {
-    elapsedMs,
-    promptTokens,
-    completionTokens,
-    totalTokens,
-    tokensPerSecond,
-  };
-}
+import { buildStats } from "./utils/build-stats";
+import { modelMatches } from "./utils/model-matches";
 
 // Stateful wrapper around Ollama: owns the chat model + translation chain and
 // encapsulates the request orchestration (timeout, abort, retry, cleanup).
@@ -194,6 +145,23 @@ class LlmModelService {
   async listModels(): Promise<string[]> {
     const tags = await this.fetchTags();
     return tags.map((m) => m.name);
+  }
+
+  // Resolves which model to use at startup from what Ollama has installed:
+  // preferred model present → "ok"; nothing installed → "no-models"; preferred
+  // model missing but others exist → "fallback" to the first installed one.
+  async resolveStartupModel(): Promise<StartupModel> {
+    const tags = await this.fetchTags();
+    if (tags.length === 0) return { status: "no-models" };
+
+    const available = tags.some(
+      (m) =>
+        modelMatches(config.MODEL, m.name) ||
+        modelMatches(config.MODEL, m.model),
+    );
+    if (available) return { status: "ok" };
+
+    return { status: "fallback", model: tags[0].name };
   }
 }
 

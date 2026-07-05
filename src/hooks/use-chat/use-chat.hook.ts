@@ -64,6 +64,8 @@ export function useChat({
     };
   }, []);
 
+  // Re-check the active model after a manual /model switch (it may not be
+  // pulled) and warn if it is missing.
   const verifyModel = useCallback(async () => {
     const available = await llmModelService.checkModelAvailable();
     modelAvailableRef.current = available;
@@ -75,9 +77,36 @@ export function useChat({
     }
   }, [addMessage]);
 
+  // Startup: adapt to whatever Ollama has installed instead of trusting the
+  // configured default blindly (it may not be pulled on this machine).
+  const initModel = useCallback(async () => {
+    const result = await llmModelService.resolveStartupModel();
+
+    if (result.status === "no-models") {
+      modelAvailableRef.current = false;
+      addMessage(
+        "Bot",
+        "No models are installed. Pull one first, e.g.: ollama pull gemma3:4b",
+      );
+      return;
+    }
+
+    if (result.status === "fallback") {
+      const wanted = config.MODEL;
+      llmModelService.setModel(result.model);
+      setModel(result.model);
+      addMessage(
+        "Bot",
+        `Model "${wanted}" is not installed — switched to "${result.model}". Use /model to pick another.`,
+      );
+    }
+
+    modelAvailableRef.current = true;
+  }, [addMessage, setModel]);
+
   useEffect(() => {
-    verifyModel();
-  }, [verifyModel]);
+    initModel();
+  }, [initModel]);
 
   const clear = useCallback(() => {
     setMessages([WELCOME_MESSAGE]);

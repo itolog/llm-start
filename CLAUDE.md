@@ -61,6 +61,12 @@ a suffix on the basename:
 - `*.test.ts` — tests (short form, no role suffix)
 - `index.ts` — public-API barrel
 
+**Util placement** — a helper used by **only one module** lives in that module's
+own `utils/` folder (e.g. `services/llm-model/utils/build-stats/`), imported
+relatively; a helper shared by **2+ modules** lives in the top-level `src/utils/`
+and is imported via the `@/utils/*` alias. Keeping single-use helpers module-local
+also avoids import cycles when the helper needs the module's own types.
+
 Exported binding names stay camelCase/PascalCase (`useChat`, `createMessage`,
 `Header`); only filenames are kebab-case.
 
@@ -80,24 +86,29 @@ src/
     header/                          # { header.component.tsx, index.ts } — gradient BigText banner (ink-gradient + ink-big-text)
     settings-bar/                    # { settings-bar.component.tsx, settings-bar.type.ts, index.ts }
     message-list/                    # { message-list.component.tsx, message-list.type.ts, index.ts }
-    message/                         # { message.component.tsx, message.type.ts, index.ts } — MessageItem (role-titled card via @mishieck/ink-titled-box)
+    message/                         # { message.component.tsx, message.type.ts, index.ts } — MessageItem (built-in Box card; header row = role left / HH:MM right via justifyContent space-between)
+    live-timer/                      # { live-timer.component.tsx, index.ts } — self-ticking elapsed timer shown during a translation (in place of StatsBar)
     loading-indicator/               # { loading-indicator.component.tsx, index.ts }
     input-bar/                       # { input-bar.component.tsx, input-bar.type.ts, index.ts }
     model-picker/                    # { model-picker.component.tsx, model-picker.type.ts, index.ts } — ink-select-input list, shown in place of InputBar for bare /model
   hooks/
     use-chat/                        # { use-chat.hook.ts, use-chat.type.ts, index.ts } — messages, submit, abort, translate
   types/
-    message.type.ts                  # Message type (plain type file, not a module)
+    message.type.ts                  # Message type (role, text, id, createdAt) — plain type file, not a module
   commands/
     parse-command/                   # { parse-command.util.ts, parse-command.type.ts (Command), parse-command.test.ts, index.ts }
   services/
     llm-model/
-      llm-model.service.ts           # LlmModelService class (owns ChatOllama + chain) exported as llmModelService singleton — translate() + checkModelAvailable() + listModels() (both via a shared private fetchTags())
-      llm-model.type.ts              # OllamaTag, TranslateParams
+      llm-model.service.ts           # LlmModelService class (owns ChatOllama + chain) exported as llmModelService singleton — translate() + checkModelAvailable() + listModels() + resolveStartupModel() (all via a shared private fetchTags())
+      llm-model.type.ts              # OllamaTag, StartupModel, TranslateParams, TranslationStats/Result, ChainResponse/ChainChunk
       llm-model.test.ts
       llm-prompt.ts                  # ChatPromptTemplate (system prompt)
+      utils/                         # module-local helpers (used only by this service)
+        build-stats/                 # { build-stats.util.ts, build-stats.test.ts, index.ts } — buildStats(ChainResponse, elapsedMs) → TranslationStats
+        model-matches/               # { model-matches.util.ts, model-matches.test.ts, index.ts } — Ollama tag ↔ config matching (handles implicit :latest)
+      index.ts
     index.ts
-  utils/
+  utils/                             # cross-module helpers (used by 2+ modules)
     clean-text/                      # { clean-text.util.ts, index.ts }
     create-message/                  # { create-message.util.ts, index.ts } — Message factory
     with-retry/                      # { with-retry.util.ts, with-retry.type.ts (RetryOptions), with-retry.test.ts, index.ts }
@@ -115,14 +126,15 @@ existing plan file in place rather than creating a duplicate.
 
 ## Key Decisions
 
-- **Chat messages render as role-titled cards** — `MessageItem` uses `<TitledBox>` from [`@mishieck/ink-titled-box`](https://github.com/mishieck/ink-titled-box) (`titles={[msg.role]}`, `borderStyle="round"`, per-role `borderColor` — You=magenta, Bot=cyan) to put the role in the border line (`╭ Bot ─╮`); `MessageList` adds `gap={1}` between cards. Ink 7's built-in `Box` has **no** native border title, hence the dependency (bare `ink-titled-box` on npm is a different, 404 package — the real one is the `@mishieck` scope). **Peer caveat:** its peer range is `ink ^6.0.0`, so `bun install` prints an `incorrect peer dependency "ink@7.1.0"` **warning** — but it only imports `Box`/`Text`/`measureElement` (all unchanged in Ink 7) and was smoke-tested rendering correctly on Ink 7.1.0. The title is positioned via `measureElement` + a `useEffect`, so a freshly-mounted card shows the top border without its title for one frame before the measure reflow fills it in (harmless one-tick pop). Added 2026-07-05.
+- **Chat messages render as cards** — `MessageItem` is a built-in `<Box borderStyle="round">` with per-role `borderColor` (You=magenta, Bot=cyan); the first child is a header `<Box justifyContent="space-between">` with the role (left, bold, role color) and the `HH:MM` timestamp (right, dim), then the message text (or the `LoadingIndicator` while the bot card is still empty/streaming). `MessageList` adds `gap={1}` between cards. **History:** an earlier version used `@mishieck/ink-titled-box` to put the role *in* the border line (`╭ Bot ─╮`), but it positions the title via `measureElement` + `useEffect`, which mis-rendered full-width cards in a real wide terminal (missing top-left corner / left border) — on top of a stale `ink ^6` peer. Reverted to the dependency-free built-in `Box` (Ink draws the border itself via yoga, no overlay/measurement), trading the in-border title for a header row inside the card. Added 2026-07-05.
 - **`bun`** is used to run the app (`bun src/index.tsx`) and as the package manager.
 - **`vitest`** is the test runner — use `npm run test`, not `bun test` (different runtime, incompatible APIs).
 - `tsconfig` uses `moduleResolution: "bundler"` + `module: "Preserve"` (`noEmit`), so local imports are written **without** `.js` extensions and resolve `index` files by folder (e.g. `import { config } from "@/config"`). `bun` runs/builds the app, doing the resolution; `tsc` is type-check only.
 - **Path alias `@/*` → `src/*`** (`tsconfig` `paths`). **Cross-module** imports use the alias (`import { useChat } from "@/hooks/use-chat"`); **intra-module** imports stay relative (`./header.component`, `./header.type`) — a module referencing its own files does not go through the alias. `bun` (run + `--compile`) reads the alias from `tsconfig` natively; `tsc` too. `vitest` does **not** read `tsconfig` `paths`, so it is mirrored via `resolve.alias` (`"@/"` → `src/`) in `vitest.config.ts`.
 - JSX target is `"react"` (classic runtime), not `"react-jsx"`, because Ink uses React but not the new JSX transform.
 - The translation chain (`prompt.pipe(llm)`) is created once in the `LlmModelService` constructor in `services/llm-model/llm-model.service.ts` — not per request. The service is exported as a singleton `llmModelService` and encapsulates the request orchestration (timeout, abort, retry, text cleaning); `useChat` only owns the per-submit `AbortController` and calls `llmModelService.translate(...)`.
-- In-app commands (`/from`, `/to`, `/model`, `/temp`, `/clear`, `/help`, `/exit`) are parsed by `parseCommand()` and never sent to Ollama. **Bare `/model`** (no argument) returns `{ type: "models" }` → `useChat` fetches `llmModelService.listModels()` and opens the `ModelPicker` (rendered in place of the `InputBar` while `modelItems` is non-null; Enter applies via the shared `applyModel`, Esc cancels). `/model <name>` still switches directly. The `Header` is a gradient `BigText` banner via **ink-gradient** (`name="vice"`) + **ink-big-text** (`font="tiny"`, `space={false}`); both peer-satisfy Ink 7 (`ink >=6`/`>=4`), unlike `@mishieck/ink-titled-box`. Added 2026-07-05.
+- **Startup model resolution** — the configured `MODEL` in `default-model-config.ts` is a **preferred** default, not a hard requirement. On mount `useChat` calls `llmModelService.resolveStartupModel()` (reads `/api/tags`): `"ok"` if the preferred model is installed; `"no-models"` → posts a "pull one first" instruction and blocks translation; `"fallback"` → switches to the first installed model and tells the user (so the app works on any machine regardless of what the default names). The old behavior (hard error demanding you pull the exact default) is gone. `verifyModel()` (the missing-model warning) is still used after a manual `/model <name>` switch.
+- In-app commands (`/from`, `/to`, `/model`, `/temp`, `/clear`, `/help`, `/exit`) are parsed by `parseCommand()` and never sent to Ollama. **Bare `/model`** (no argument) returns `{ type: "models" }` → `useChat` fetches `llmModelService.listModels()` and opens the `ModelPicker` (rendered in place of the `InputBar` while `modelItems` is non-null; Enter applies via the shared `applyModel`, Esc cancels). `/model <name>` still switches directly. The `Header` is a gradient `BigText` banner via **ink-gradient** (`name="vice"`) + **ink-big-text** (`font="tiny"`, `space={false}`); both peer-satisfy Ink 7 cleanly (`ink >=6`/`>=4`). Added 2026-07-05.
 - `AbortController` is created per submit and passed to `chain.invoke`; timeout also calls `controller.abort()` to close the HTTP connection to Ollama.
 - `withRetry` does not retry `AbortError` — user cancellation is intentional and should not be retried.
 - **Linting uses [Oxc](https://oxc.rs/) (`oxlint`)** — config in `.oxlintrc.json` (`ignorePatterns: ["dist/**"]`, TS + React/React-Hooks correctness rules, `react-hooks/exhaustive-deps` enabled). ESLint was removed. **Circular-dependency detection** is oxlint's `import/no-cycle` rule (`"error"`) — the `import` plugin is enabled in `plugins`, and oxlint auto-reads the root `tsconfig.json` to resolve the `@/*` alias, so cycles across both relative and `@/` imports are caught. No `--import-plugin`/`--tsconfig` CLI flags or `import/resolver` settings are needed; a separate tool (madge/dpdm) is therefore unnecessary. Only `no-cycle` is enabled from the import plugin — the rest of its rules stay off. Added 2026-07-05. **Formatting uses [`oxfmt`](https://oxc.rs/) (Oxc formatter)** — config in `.oxfmtrc.json` (migrated from `.prettierrc` via `oxfmt --migrate=prettier`, so the same style: 2-space indent, double quotes, semicolons, trailing commas, `printWidth: 80`). Prettier was removed. **Import sorting is done by oxfmt's `sortImports`** (not oxlint): imports are grouped by path — `react` (a `customGroups` entry, always first) → `builtin` → `external` → `internal` (`@/*`) → relative (`parent`/`sibling`/`index`) — with a blank line between groups and alphabetical order within each group. It is applied automatically on `oxfmt --write` (so the pre-commit `format` job re-sorts + re-stages; no manual step). `oxlint`'s `sort-imports` rule is intentionally **not** used — its declaration reordering is not auto-fixable, whereas oxfmt's is. Note `customGroups` `elementNamePattern` takes **glob** patterns, not regex (`"react"`, not `"^react$"`). Markdown **and YAML** are excluded (`**/*.md`, `*.yml`/`*.yaml` + `**/*.yml`/`**/*.yaml` in `ignorePatterns`) because oxfmt 0.56 throws `DataCloneError` on them — re-enable once fixed upstream. (YAML matters since `lefthook.yml` lives at the repo root; note the root-level `*.yml` pattern is needed because `**/*.yml` alone does not match files in the repo root.)

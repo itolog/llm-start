@@ -5,5 +5,6 @@ export function createMessage(role: Message["role"], text: string): Message {
     role,
     text,
     id: crypto.randomUUID(),
+    createdAt: Date.now(),
   };
 }

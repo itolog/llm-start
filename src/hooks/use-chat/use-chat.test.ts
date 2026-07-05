@@ -12,6 +12,7 @@ const {
   mockSetModel,
   mockSetTemp,
   mockListModels,
+  mockResolveStartup,
 } = vi.hoisted(() => ({
   mockExit: vi.fn(),
   mockTranslate: vi.fn(),
@@ -19,6 +20,7 @@ const {
   mockSetModel: vi.fn(),
   mockSetTemp: vi.fn(),
   mockListModels: vi.fn(),
+  mockResolveStartup: vi.fn(),
 }));
 
 vi.mock("ink", () => ({ useApp: () => ({ exit: mockExit }) }));
@@ -31,6 +33,7 @@ vi.mock("@/services/llm-model", () => ({
     setModel: mockSetModel,
     setTemperature: mockSetTemp,
     listModels: mockListModels,
+    resolveStartupModel: mockResolveStartup,
   },
 }));
 
@@ -82,6 +85,7 @@ const translationResult = (text: string) => ({ text, stats: fakeStats });
 beforeEach(() => {
   vi.clearAllMocks();
   mockCheckModel.mockResolvedValue(true);
+  mockResolveStartup.mockResolvedValue({ status: "ok" });
 });
 
 describe("useChat", () => {
@@ -273,25 +277,42 @@ describe("useChat", () => {
     expect(mockExit).toHaveBeenCalledTimes(1);
   });
 
-  it("reports an unavailable model instead of translating", async () => {
-    mockCheckModel.mockResolvedValue(false);
+  it("guides the user and blocks translation when no models are installed", async () => {
+    mockResolveStartup.mockResolvedValue({ status: "no-models" });
     const { result } = setup();
 
-    // let the mount effect resolve and flip the model-availability ref;
-    // the error is appended after the welcome message, not replacing it
+    // the instruction is appended after the welcome message, not replacing it
     await waitFor(() =>
-      expect(texts(result).some((t) => t.includes("is not available"))).toBe(
-        true,
-      ),
+      expect(
+        texts(result).some((t) => t.includes("No models are installed")),
+      ).toBe(true),
     );
     expect(result.current.messages[0].text).toContain("Hello! I am a TUI");
 
     await submitText(result, "hello");
 
     expect(mockTranslate).not.toHaveBeenCalled();
-    expect(texts(result).some((t) => t.includes("is not available"))).toBe(
-      true,
+  });
+
+  it("falls back to an installed model when the preferred one is missing", async () => {
+    mockResolveStartup.mockResolvedValue({
+      status: "fallback",
+      model: "llama3",
+    });
+    mockTranslate.mockResolvedValue(translationResult("bonjour"));
+    const { result, setModel } = setup();
+
+    await waitFor(() =>
+      expect(
+        texts(result).some((t) => t.includes('switched to "llama3"')),
+      ).toBe(true),
     );
+    expect(mockSetModel).toHaveBeenCalledWith("llama3"); // service switched
+    expect(setModel).toHaveBeenCalledWith("llama3"); // React state seeded
+
+    // translation is not blocked — the fallback model is usable
+    await submitText(result, "hello");
+    expect(mockTranslate).toHaveBeenCalledTimes(1);
   });
 
   it("ignores empty input", async () => {
