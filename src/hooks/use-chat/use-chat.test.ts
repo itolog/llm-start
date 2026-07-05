@@ -145,10 +145,14 @@ describe("useChat", () => {
     mockCheckModel.mockResolvedValue(false);
     const { result } = setup();
 
-    // let the mount effect resolve and flip the model-availability ref
+    // let the mount effect resolve and flip the model-availability ref;
+    // the error is appended after the welcome message, not replacing it
     await waitFor(() =>
-      expect(result.current.messages[0].text).toContain("is not available"),
+      expect(texts(result).some((t) => t.includes("is not available"))).toBe(
+        true,
+      ),
     );
+    expect(result.current.messages[0].text).toContain("Hello! I am a TUI");
 
     await submitText(result, "hello");
 

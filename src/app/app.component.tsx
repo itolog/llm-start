@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 import { Box } from "ink";
 
@@ -7,10 +7,10 @@ import { InputBar } from "@/components/input-bar";
 import { MessageList } from "@/components/message-list";
 import { SettingsBar } from "@/components/settings-bar";
 import { useChat } from "@/hooks/use-chat";
-import { useLangSettings } from "@/hooks/use-lang-settings";
 
 export const App = () => {
-  const { fromLang, toLang, setFromLang, setToLang } = useLangSettings();
+  const [fromLang, setFromLang] = useState("english");
+  const [toLang, setToLang] = useState("polish");
   const { messages, isLoading, input, setInput, submit } = useChat({
     fromLang,
     toLang,

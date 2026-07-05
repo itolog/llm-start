@@ -123,7 +123,7 @@ describe("parseCommand", () => {
     });
   });
 
-  describe("/exit and /quit", () => {
+  describe("/exit, /quit and /q", () => {
     it("returns exit for /exit", () => {
       expect(parseCommand("/exit")).toEqual({ type: "exit" });
     });
@@ -132,9 +132,14 @@ describe("parseCommand", () => {
       expect(parseCommand("/quit")).toEqual({ type: "exit" });
     });
 
+    it("returns exit for /q", () => {
+      expect(parseCommand("/q")).toEqual({ type: "exit" });
+    });
+
     it("is case-insensitive", () => {
       expect(parseCommand("/EXIT")).toEqual({ type: "exit" });
       expect(parseCommand("/QUIT")).toEqual({ type: "exit" });
+      expect(parseCommand("/Q")).toEqual({ type: "exit" });
     });
   });
 
