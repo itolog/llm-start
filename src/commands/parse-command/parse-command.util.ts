@@ -12,7 +12,7 @@ export function parseCommand(input: string): Command {
     return { type: "clear" };
   }
 
-  if (lower === "/exit" || lower === "/quit") {
+  if (lower === "/exit" || lower === "/quit" || lower === "/q") {
     return { type: "exit" };
   }
 

@@ -36,6 +36,16 @@ export function useChat({
   const abortControllerRef = useRef<AbortController | null>(null);
   const modelAvailableRef = useRef<boolean | null>(null);
 
+  const addMessage = useCallback((role: "You" | "Bot", text: string) => {
+    setMessages((prev) => {
+      const newMessages = [...prev, createMessage(role, text)];
+      if (newMessages.length > MAX_MESSAGES) {
+        return newMessages.slice(newMessages.length - MAX_MESSAGES);
+      }
+      return newMessages;
+    });
+  }, []);
+
   useEffect(() => {
     return () => {
       abortControllerRef.current?.abort();
@@ -47,26 +57,14 @@ export function useChat({
       const available = await checkModelAvailable();
       modelAvailableRef.current = available;
       if (!available) {
-        setMessages([
-          createMessage(
-            "Bot",
-            `Error: Model "${config.MODEL}" is not available. Please pull the model first using: ollama pull ${config.MODEL}`,
-          ),
-        ]);
+        addMessage(
+          "Bot",
+          `Error: Model "${config.MODEL}" is not available. Please pull the model first using: ollama pull ${config.MODEL}`,
+        );
       }
     };
     checkModel();
-  }, []);
-
-  const addMessage = useCallback((role: "You" | "Bot", text: string) => {
-    setMessages((prev) => {
-      const newMessages = [...prev, createMessage(role, text)];
-      if (newMessages.length > MAX_MESSAGES) {
-        return newMessages.slice(newMessages.length - MAX_MESSAGES);
-      }
-      return newMessages;
-    });
-  }, []);
+  }, [addMessage]);
 
   const clear = useCallback(() => {
     setMessages([WELCOME_MESSAGE]);
@@ -94,7 +92,7 @@ export function useChat({
       .with({ type: "help" }, () =>
         addMessage(
           "Bot",
-          "Commands:\n/from <lang> — set source language\n/to <lang> — set target language\n/clear — clear history\n/help — show this help\n/exit (or /quit) — quit",
+          "Commands:\n/from <lang> — set source language\n/to <lang> — set target language\n/clear — clear history\n/help — show this help\n/exit (or /quit, /q) — quit",
         ),
       )
       .with({ type: "exit" }, () => exit())
