@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { config } from "@/config";
+
 // Hoisted so the vi.mock factory below can close over it. Replacing the chain
 // keeps the whole test off Ollama — the service constructor builds its chain
 // from `prompt.pipe(llm)`, so stubbing `prompt.pipe` hands it our fake invoke.
@@ -40,7 +42,11 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
+
+const stubFetch = (impl: () => Promise<unknown>) =>
+  vi.stubGlobal("fetch", vi.fn(impl));
 
 describe("llmModelService", () => {
   it("exposes translate and checkModelAvailable methods", () => {
@@ -110,5 +116,56 @@ describe("llmModelService", () => {
     await vi.advanceTimersByTimeAsync(60000);
 
     await expect(promise).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  describe("checkModelAvailable", () => {
+    it("returns true when the configured model is listed", async () => {
+      stubFetch(async () => ({
+        ok: true,
+        json: async () => ({
+          models: [{ name: config.MODEL, model: config.MODEL }],
+        }),
+      }));
+
+      await expect(llmModelService.checkModelAvailable()).resolves.toBe(true);
+    });
+
+    it("matches a model pulled with the implicit :latest tag", async () => {
+      stubFetch(async () => ({
+        ok: true,
+        json: async () => ({
+          models: [
+            { name: `${config.MODEL}:latest`, model: `${config.MODEL}:latest` },
+          ],
+        }),
+      }));
+
+      await expect(llmModelService.checkModelAvailable()).resolves.toBe(true);
+    });
+
+    it("returns false when the configured model is absent", async () => {
+      stubFetch(async () => ({
+        ok: true,
+        json: async () => ({
+          models: [{ name: "other-model", model: "other-model" }],
+        }),
+      }));
+
+      await expect(llmModelService.checkModelAvailable()).resolves.toBe(false);
+    });
+
+    it("returns false on a non-ok response", async () => {
+      stubFetch(async () => ({ ok: false, json: async () => ({}) }));
+
+      await expect(llmModelService.checkModelAvailable()).resolves.toBe(false);
+    });
+
+    it("returns false when the request throws", async () => {
+      stubFetch(async () => {
+        throw new Error("ECONNREFUSED");
+      });
+
+      await expect(llmModelService.checkModelAvailable()).resolves.toBe(false);
+    });
   });
 });
