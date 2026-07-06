@@ -92,7 +92,7 @@ describe("useChat", () => {
   it("starts with a single welcome message and not loading", () => {
     const { result } = setup();
     expect(result.current.messages).toHaveLength(1);
-    expect(result.current.messages[0].role).toBe("Bodt");
+    expect(result.current.messages[0].role).toBe("Bot");
     expect(result.current.isLoading).toBe(false);
   });
 
