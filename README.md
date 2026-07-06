@@ -4,8 +4,7 @@ A terminal-based chat translator built with **Ink** (React for CLI), **LangChain
 
 ## 🛠 Prerequisites
 
-- **Node.js** (v18+)
-- [**Bun**](https://bun.sh/) — used to run, build, and manage packages.
+- [**Bun**](https://bun.sh/) — the runtime and package manager (used to run, build, and manage packages).
 - **Ollama** installed and running on your machine.
 - A model pulled in Ollama (e.g., `gemma3:4b`).
 
@@ -24,17 +23,24 @@ A terminal-based chat translator built with **Ink** (React for CLI), **LangChain
    bun install
    ```
 
-3. Configure the model. Edit the defaults in `src/config/default-config.ts`:
+3. Configure the preferred model. Edit the defaults in
+   `src/config/model-config/default-model-config.ts`:
 
    ```ts
-   export const defaultConfig: Config = {
+   export const defaultModelConfig: ModelConfig = {
      MODEL: "gemma4:12b-mlx",
      LLM_TEMP: 0.1,
    };
    ```
 
-   The Ollama endpoint and timeouts live in `src/constants.ts`
-   (`OLLAMA_BASE_URL`, `LLM_TIMEOUT_MS`, `MODEL_CHECK_TIMEOUT_MS`, `MAX_MESSAGES`).
+   This is only a **preferred** default — it does not have to be installed. On
+   startup the app falls back to an installed model if this one is missing (or
+   prompts you to pull one if none are). You can also switch at runtime with
+   `/model` and `/temp`.
+
+   The Ollama endpoint and timeouts live in
+   `src/config/app-config/app-config.ts` (`OLLAMA_BASE_URL`, `LLM_TIMEOUT_MS`,
+   `MODEL_CHECK_TIMEOUT_MS`, `MAX_MESSAGES`).
 
 ## 🚀 Usage
 
@@ -44,8 +50,9 @@ Start the TUI:
 npm start
 ```
 
-On startup the app checks that `MODEL` is available in Ollama and, if not, prints
-how to pull it.
+On startup the app checks Ollama for installed models: if the preferred `MODEL`
+is available it uses it; otherwise it falls back to the first installed model
+(telling you), or — if none are installed — prints how to pull one.
 
 ### TUI Commands
 
@@ -53,9 +60,11 @@ Type into the input field. Anything not starting with `/` is translated.
 
 - `/from <lang>` — Change the source language (e.g., `/from english`).
 - `/to <lang>` — Change the target language (e.g., `/to polish`).
+- `/model [name]` — Switch the model. Omit the name to pick from a list.
+- `/temp [0-2]` — Set the temperature. Omit the value to adjust with a stepper.
 - `/clear` — Clear the message history.
 - `/help` — List available commands.
-- `/exit` (`/quit`) — Close the app.
+- `/exit` (`/quit`, `/q`) — Close the app.
 
 ## 🏗 Architecture
 
@@ -65,15 +74,17 @@ with an `index.ts` barrel; consumers import the folder, not the inner files.
 - `src/index.tsx` — entry point (`render(<App />)`).
 - `src/app/` — root `App` component wiring the UI together.
 - `src/components/` — `header`, `settings-bar`, `message-list`, `message`,
-  `loading-indicator`, `input-bar`.
-- `src/hooks/` — `use-chat` (messages, submit, abort), `use-lang-settings`
-  (from/to language state).
+  `commands-help`, `live-timer`, `loading-indicator`, `input-bar`,
+  `model-picker`, `temp-picker`.
+- `src/hooks/` — `use-chat` (messages, submit, abort, translate, model
+  resolution).
 - `src/commands/parse-command/` — parses in-app `/` commands.
-- `src/llm-model/` — LangChain + Ollama integration (`translationChain`,
-  `checkModelAvailable`).
-- `src/config/` — model defaults (`default-config.ts`) and the `Config` type.
+- `src/services/llm-model/` — LangChain + Ollama integration (`llmModelService`
+  singleton: `translate`, `checkModelAvailable`, `listModels`,
+  `resolveStartupModel`).
+- `src/config/` — the active `config` plus `model-config/` (model defaults,
+  runtime-mutable) and `app-config/` (network, timeouts, history cap).
 - `src/utils/` — `clean-text`, `create-message`, `with-retry`.
-- `src/constants.ts` — shared constants.
 
 Imports use the **`@/*` → `src/*`** path alias for cross-module references
 (`import { useChat } from "@/hooks/use-chat"`); imports **within** a module stay

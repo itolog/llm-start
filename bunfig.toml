@@ -1,25 +1,26 @@
 # https://bun.com/docs/runtime/bunfig
 
 [install]
-# Explicit HTTPS registry URL — prevents MITM via DNS spoofing
+# The default registry. Set explicitly to pin the package source, so an
+# ambient config can't silently redirect installs to a different registry.
 registry = "https://registry.npmjs.org/"
 
 # Save exact versions on `bun add` (1.2.3 instead of ^1.2.3)
 # Eliminates dependency drift through semver ranges
 exact = true
 
-# Allowlist of packages permitted to run lifecycle scripts
-# (postinstall, preinstall, etc.) — the primary supply-chain attack vector.
-# Empty array means no package runs scripts without explicit permission.
-# Add only verified packages that genuinely require postinstall.
-trustedDependencies = []
+# Quarantine freshly-published versions: refuse to install any package
+# version younger than this (seconds). Compromised releases are usually
+# yanked within days, so a cooldown avoids pulling a malicious version
+# during the window before it is caught. 604800 = 7 days.
+# Need an urgent patch sooner? Exempt it via `minimumReleaseAgeExcludes`.
+minimumReleaseAge = 604800
 
 [install.lockfile]
 # Always write the lockfile — guarantees reproducibility and integrity
 save = true
-# Native Bun binary lockfile format (tamper-evident)
-print = "bun"
 
 [run]
-# Execute scripts via the Bun runtime (no Node.js shim overhead)
+# Run everything through Bun: even scripts/tools that invoke `node`
+# (incl. node shebangs) get redirected to the Bun runtime.
 bun = true
