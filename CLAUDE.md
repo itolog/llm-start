@@ -8,7 +8,7 @@ A terminal-based translation app (TUI) built with **Ink** (React for CLI), **Lan
 
 ## Prerequisites
 
-- Node.js v18+
+- [Bun](https://bun.sh/) (`engines.bun` pins the version; runs and builds the app, no Node.js required)
 - [Ollama](https://ollama.com/) installed and running locally
 - A model pulled in Ollama (e.g., `gemma3:4b`)
 - Model defaults set in `src/config/default-model-config.ts` (`MODEL`, `LLM_TEMP`)
@@ -22,17 +22,17 @@ npm run build         # Compile to a standalone binary (dist/lang-app) via bun -
 
 # Linting (run in parallel via concurrently)
 npm run lint          # Run all lint:* checks in parallel
-npm run lint:code     # oxlint check (Oxc, Rust-based linter)
-npm run lint:types    # TypeScript type check (tsc --noEmit)
-npm run lint:format   # oxfmt format check (Oxc formatter)
-npm run lint:unused   # knip — unused files, dependencies, and exports
-npm run fix:lint      # oxlint auto-fix
+npm run lint:code     # Lint check
+npm run lint:types    # Type check (tsc --noEmit)
+npm run lint:format   # Format check
+npm run lint:unused   # Unused files, dependencies, and exports
+npm run fix:lint      # Auto-fix lint errors
 
 # Formatting
-npm run format        # oxfmt format all files
+npm run format        # Format all files
 
 # Testing
-npm run test          # Run all tests once (vitest run)
+npm run test          # Run all tests once
 npm run test:watch    # Run tests in watch mode
 
 # Full verification — run this after every completed task
@@ -70,50 +70,23 @@ also avoids import cycles when the helper needs the module's own types.
 Exported binding names stay camelCase/PascalCase (`useChat`, `createMessage`,
 `Header`); only filenames are kebab-case.
 
+Top-level layout (per-file detail is discoverable by browsing — this is the map, not an
+inventory):
+
 ```
 src/
-  index.tsx                          # Entry point — render(<App />)
-  stubs/
-    react-devtools-core.ts           # Empty alias for Ink's dev-only import (see tsconfig paths)
-  app/
-    app.component.tsx                 # Root component
-    index.ts
-  config/
-    index.ts                         # active `config` (mutable copy of model defaults) + re-exports appConfig + ModelConfig/AppConfig types
-    model-config/                    # { model-config.type.ts (ModelConfig), default-model-config.ts (defaultModelConfig — MODEL, LLM_TEMP), index.ts }
-    app-config/                      # { app-config.type.ts (AppConfig), app-config.ts (appConfig — OLLAMA_BASE_URL, LLM_TIMEOUT_MS, MAX_MESSAGES, MODEL_CHECK_TIMEOUT_MS), index.ts }
-  components/
-    header/                          # { header.component.tsx, index.ts } — gradient BigText banner (ink-gradient + ink-big-text)
-    settings-bar/                    # { settings-bar.component.tsx, settings-bar.type.ts, index.ts }
-    message-list/                    # { message-list.component.tsx, message-list.type.ts, index.ts }
-    message/                         # { message.component.tsx, message.type.ts, index.ts } — MessageItem (built-in Box card; header row = role left / HH:MM right via justifyContent space-between; renders CommandsHelp when msg.kind === "commands")
-    commands-help/                   # { commands-help.component.tsx, commands-help.model.ts (COMMANDS), index.ts } — highlighted command table (accent command + dim args/description), used by welcome + /help
-    live-timer/                      # { live-timer.component.tsx, index.ts } — self-ticking elapsed timer shown during a translation (in place of StatsBar)
-    loading-indicator/               # { loading-indicator.component.tsx, index.ts }
-    input-bar/                       # { input-bar.component.tsx, input-bar.type.ts, index.ts }
-    model-picker/                    # { model-picker.component.tsx, model-picker.type.ts, index.ts } — ink-select-input list, shown in place of InputBar for bare /model
-    temp-picker/                     # { temp-picker.component.tsx, temp-picker.type.ts, index.ts } — custom ←/→ stepper (0–2, step 0.1) for bare /temp
-  hooks/
-    use-chat/                        # { use-chat.hook.ts, use-chat.type.ts, index.ts } — messages, submit, abort, translate
-  types/
-    message.type.ts                  # Message type (role, text, id, createdAt, kind?) — plain type file, not a module
-  commands/
-    parse-command/                   # { parse-command.util.ts, parse-command.type.ts (Command), parse-command.test.ts, index.ts }
-  services/
-    llm-model/
-      llm-model.service.ts           # LlmModelService class (owns ChatOllama + chain) exported as llmModelService singleton — translate() + checkModelAvailable() + listModels() + resolveStartupModel() (all via a shared private fetchTags())
-      llm-model.type.ts              # OllamaTag, StartupModel, TranslateParams, TranslationStats/Result, ChainResponse/ChainChunk
-      llm-model.test.ts
-      llm-prompt.ts                  # ChatPromptTemplate (system prompt)
-      utils/                         # module-local helpers (used only by this service)
-        build-stats/                 # { build-stats.util.ts, build-stats.test.ts, index.ts } — buildStats(ChainResponse, elapsedMs) → TranslationStats
-        model-matches/               # { model-matches.util.ts, model-matches.test.ts, index.ts } — Ollama tag ↔ config matching (handles implicit :latest)
-      index.ts
-    index.ts
-  utils/                             # cross-module helpers (used by 2+ modules)
-    clean-text/                      # { clean-text.util.ts, index.ts }
-    create-message/                  # { create-message.util.ts, index.ts } — Message factory
-    with-retry/                      # { with-retry.util.ts, with-retry.type.ts (RetryOptions), with-retry.test.ts, index.ts }
+  index.tsx        # Entry point — render(<App />)
+  stubs/           # react-devtools-core empty stub (Ink dev-only import, wired via tsconfig paths)
+  app/             # Root App component
+  config/          # active `config` (mutable model defaults) + appConfig; model-config/ + app-config/ sub-modules
+  components/       # header, settings-bar, message-list, message, commands-help, live-timer,
+                   #   loading-indicator, input-bar, model-picker, temp-picker
+  hooks/           # use-chat — messages, submit, abort, translate
+  types/           # message.type.ts (plain type file, not a module)
+  commands/        # parse-command — parses in-app /commands
+  services/        # llm-model — LlmModelService (ChatOllama + chain) as llmModelService singleton;
+                   #   module-local utils/ (build-stats, model-matches)
+  utils/           # cross-module helpers (@/utils/*): clean-text, create-message, with-retry
 ```
 
 ## Planning
@@ -128,20 +101,78 @@ existing plan file in place rather than creating a duplicate.
 
 ## Key Decisions
 
-- **Chat messages render as cards** — `MessageItem` is a built-in `<Box borderStyle="round">` with per-role `borderColor` (You=magenta, Bot=cyan); the first child is a header `<Box justifyContent="space-between">` with the role (left, bold, role color) and the `HH:MM` timestamp (right, dim), then the message text (or the `LoadingIndicator` while the bot card is still empty/streaming). `MessageList` adds `gap={1}` between cards. **History:** an earlier version used `@mishieck/ink-titled-box` to put the role *in* the border line (`╭ Bot ─╮`), but it positions the title via `measureElement` + `useEffect`, which mis-rendered full-width cards in a real wide terminal (missing top-left corner / left border) — on top of a stale `ink ^6` peer. Reverted to the dependency-free built-in `Box` (Ink draws the border itself via yoga, no overlay/measurement), trading the in-border title for a header row inside the card. Added 2026-07-05.
-- **`bun`** is used to run the app (`bun src/index.tsx`) and as the package manager.
-- **`vitest`** is the test runner — use `npm run test`, not `bun test` (different runtime, incompatible APIs).
-- `tsconfig` uses `moduleResolution: "bundler"` + `module: "Preserve"` (`noEmit`), so local imports are written **without** `.js` extensions and resolve `index` files by folder (e.g. `import { config } from "@/config"`). `bun` runs/builds the app, doing the resolution; `tsc` is type-check only.
-- **Path alias `@/*` → `src/*`** (`tsconfig` `paths`). **Cross-module** imports use the alias (`import { useChat } from "@/hooks/use-chat"`); **intra-module** imports stay relative (`./header.component`, `./header.type`) — a module referencing its own files does not go through the alias. `bun` (run + `--compile`) reads the alias from `tsconfig` natively; `tsc` too. `vitest` does **not** read `tsconfig` `paths`, so it is mirrored via `resolve.alias` (`"@/"` → `src/`) in `vitest.config.ts`.
-- JSX target is `"react"` (classic runtime), not `"react-jsx"`, because Ink uses React but not the new JSX transform.
-- The translation chain (`prompt.pipe(llm)`) is created once in the `LlmModelService` constructor in `services/llm-model/llm-model.service.ts` — not per request. The service is exported as a singleton `llmModelService` and encapsulates the request orchestration (timeout, abort, retry, text cleaning); `useChat` only owns the per-submit `AbortController` and calls `llmModelService.translate(...)`.
-- **Startup model resolution** — the configured `MODEL` in `default-model-config.ts` is a **preferred** default, not a hard requirement. On mount `useChat` calls `llmModelService.resolveStartupModel()` (reads `/api/tags`): `"ok"` if the preferred model is installed; `"no-models"` → posts a "pull one first" instruction and blocks translation; `"fallback"` → switches to the first installed model and tells the user (so the app works on any machine regardless of what the default names). The old behavior (hard error demanding you pull the exact default) is gone. `verifyModel()` (the missing-model warning) is still used after a manual `/model <name>` switch.
-- In-app commands (`/from`, `/to`, `/model`, `/temp`, `/clear`, `/help`, `/exit`) are parsed by `parseCommand()` and never sent to Ollama. **Bare `/model`** (no argument) returns `{ type: "models" }` → `useChat` fetches `llmModelService.listModels()` and opens the `ModelPicker` (rendered in place of the `InputBar` while `modelItems` is non-null; Enter applies via the shared `applyModel`, Esc cancels). `/model <name>` still switches directly. **Bare `/temp`** mirrors this: `{ type: "tempPicker" }` → opens the `TempPicker` (a custom `useInput` ←/→ stepper, 0–2 step 0.1, seeded from the current `temp`; Enter applies via the shared `applyTemp`, Esc cancels), while `/temp <value>` still sets it directly. Only one of InputBar / ModelPicker / TempPicker is mounted at a time (so their `useInput`/text-input don't compete for keys). The `Header` is a gradient `BigText` banner via **ink-gradient** (`name="vice"`) + **ink-big-text** (`font="tiny"`, `space={false}`); both peer-satisfy Ink 7 cleanly (`ink >=6`/`>=4`). Added 2026-07-05.
-- `AbortController` is created per submit and passed to `chain.invoke`; timeout also calls `controller.abort()` to close the HTTP connection to Ollama.
-- `withRetry` does not retry `AbortError` — user cancellation is intentional and should not be retried.
-- **Linting uses [Oxc](https://oxc.rs/) (`oxlint`)** — config in `.oxlintrc.json` (`ignorePatterns: ["dist/**"]`, TS + React/React-Hooks correctness rules, `react-hooks/exhaustive-deps` enabled). ESLint was removed. **Circular-dependency detection** is oxlint's `import/no-cycle` rule (`"error"`) — the `import` plugin is enabled in `plugins`, and oxlint auto-reads the root `tsconfig.json` to resolve the `@/*` alias, so cycles across both relative and `@/` imports are caught. No `--import-plugin`/`--tsconfig` CLI flags or `import/resolver` settings are needed; a separate tool (madge/dpdm) is therefore unnecessary. Only `no-cycle` is enabled from the import plugin — the rest of its rules stay off. Added 2026-07-05. **Formatting uses [`oxfmt`](https://oxc.rs/) (Oxc formatter)** — config in `.oxfmtrc.json` (migrated from `.prettierrc` via `oxfmt --migrate=prettier`, so the same style: 2-space indent, double quotes, semicolons, trailing commas, `printWidth: 80`). Prettier was removed. **Import sorting is done by oxfmt's `sortImports`** (not oxlint): imports are grouped by path — `react` (a `customGroups` entry, always first) → `builtin` → `external` → `internal` (`@/*`) → relative (`parent`/`sibling`/`index`) — with a blank line between groups and alphabetical order within each group. It is applied automatically on `oxfmt --write` (so the pre-commit `format` job re-sorts + re-stages; no manual step). `oxlint`'s `sort-imports` rule is intentionally **not** used — its declaration reordering is not auto-fixable, whereas oxfmt's is. Note `customGroups` `elementNamePattern` takes **glob** patterns, not regex (`"react"`, not `"^react$"`). Markdown **and YAML** are excluded (`**/*.md`, `*.yml`/`*.yaml` + `**/*.yml`/`**/*.yaml` in `ignorePatterns`) because oxfmt 0.56 throws `DataCloneError` on them — re-enable once fixed upstream. (YAML matters since `lefthook.yml` lives at the repo root; note the root-level `*.yml` pattern is needed because `**/*.yml` alone does not match files in the repo root.)
-- **Module-folder convention:** every component/hook/utility lives in its own kebab-case folder with an `index.ts` barrel (public API), an implementation file (`*.component.tsx` / `*.hook.ts` / `*.util.ts` / `*.service.ts`), and a `*.type.ts` for its types. Import the folder, not the inner files — this keeps each unit isolated and easy to test.
-- **Dependency-graph visualization uses [skott](https://github.com/antoine-coulon/skott)** (a `devDependency`), run one-off via `npm run start:deps-graph` (`skott src/index.tsx --tsconfig=tsconfig.json --no-trackTypeOnlyDependencies`) — it opens skott's interactive webapp (`--no-trackTypeOnlyDependencies` omits `import type` edges so the graph reflects runtime coupling only) for exploring the module graph. skott hard-depends on `typescript@^5.9.3` (via `@typescript-eslint/typescript-estree`); this works because `bun` nests a compatible TS 5.9.x under `node_modules/skott/` while the repo's own `typescript@6.x` stays hoisted, and TS 6's package `exports` are compatible with `typescript-estree`. Note this **only works on TS 6, not TS 7** — under the earlier `typescript@7.0.1-rc`, TS 7's changed `exports` made `typescript-estree` throw `ERR_PACKAGE_PATH_NOT_EXPORTED` on the hoisted TS 7, so skott had to be run via `bunx` (isolated). If TypeScript is ever bumped back to 7, revert `start:deps-graph` to `bunx skott@<ver> …`. It lives under `start:*` (not `deps:*`) because it boots a long-running webapp server, unlike the one-shot `deps:audit`/`deps:update`/`deps:reinstall`. Circular-dependency *gating* is **not** skott's job here — that is oxlint's `import/no-cycle` (~0–20 ms, already in the lint pipeline). A standalone skott-API circular check was benchmarked and rejected: it costs ~600 ms/run (process + graph build) vs oxlint's near-zero amortized cost, so oxlint is the single gate and skott stays visualization-only. Added 2026-07-05.
-- **Dead-code detection uses [knip](https://knip.dev/)** — config in `knip.json`, run via `npm run lint:unused` (`knip`). It is named `lint:unused` so `concurrently`'s `bun:lint:*` glob auto-includes it in `npm run lint` → `npm run verify` → the Lefthook **pre-push** `verify` job; it is intentionally **not** a separate hook job (would double-run) and **not** in pre-commit (knip resolves the whole module graph, so it can't run on `{staged_files}`). The entry point is auto-detected from `package.json` `main` (`src/index.tsx`) — an explicit `entry` is redundant. Two config tweaks handle this repo's conventions: `ignore: ["src/stubs/react-devtools-core.ts"]` (the stub is wired only through a `tsconfig` `paths` alias, so knip sees it as an unused file), and `ignoreExportsUsedInFile: { type: true }` (the module-folder barrels re-export each module's `*Props`/option types as public API even when nothing imports them through the barrel, which knip would otherwise flag as unused exported types). Added 2026-07-05; the initial run also surfaced a genuinely dead `llm` export in `llm-model.service.ts`, since made module-local.
-- `npm run build` produces a **standalone binary** (`dist/lang-app`) via `bun build --compile --minify`. `react-devtools-core` (Ink's dev-only import) is aliased to an empty stub through `tsconfig` `paths` so it is not bundled.
-- **Git hooks via [Lefthook](https://lefthook.dev/)** (single Go binary, config in `lefthook.yml`, self-installed by the `prepare` script → `lefthook install` on `bun install`): **pre-commit** runs `oxlint --fix` + `oxfmt --write` on staged files in parallel (`glob` + `{staged_files}`, `stage_fixed: true` re-stages the fixed files — no `lint-staged` needed); **pre-push** runs `bun run verify` (lint + tests) and `bun audit` (`deps-audit`) in parallel. Note `bun test` is intentionally **not** used — it uses a different runtime incompatible with vitest. Bypass in emergencies with `git commit --no-verify` / `git push --no-verify`. Replaced Husky + lint-staged (2026-07-04) to consolidate onto one native binary, matching the Oxc/bun toolchain.
+Non-obvious choices and their *why* — the reasoning you can't recover from the code. Extended
+rationale for the tooling/rendering decisions lives in **`docs/adr/tooling.md`**; update that
+file (not this list) when the detail changes.
+
+### Runtime & build
+
+- **`bun`** runs the app (`bun src/index.tsx`) and is the package manager. **`vitest`** is the
+  test runner — use `npm run test`, **never** `bun test` (different runtime, incompatible APIs).
+- `npm run build` produces a **standalone binary** (`dist/lang-app`) via `bun build --compile
+  --minify`. `react-devtools-core` (Ink's dev-only import) is aliased to an empty stub via
+  `tsconfig` `paths` so it isn't bundled.
+- JSX target is `"react"` (classic runtime), not `"react-jsx"` — Ink uses React but not the
+  new JSX transform.
+
+### Module resolution & imports
+
+- `tsconfig`: `moduleResolution: "bundler"` + `module: "Preserve"` (`noEmit`), so local imports
+  omit `.js` extensions and resolve `index` by folder. `bun` runs/builds (does the resolution);
+  `tsc` is type-check only.
+- **Path alias `@/*` → `src/*`.** Cross-module imports use the alias; intra-module imports stay
+  relative (a module referencing its own files doesn't go through the alias). `bun`/`tsc` read
+  the alias from `tsconfig`; `vitest` does **not**, so it's mirrored in `vitest.config.ts`
+  `resolve.alias`.
+- **Module-folder convention** (see Architecture above): import the folder barrel, never the
+  inner files — keeps each unit isolated and testable.
+
+### LLM service
+
+- The translation chain (`prompt.pipe(llm)`) is built once in the `LlmModelService` constructor,
+  not per request. The service is a singleton `llmModelService` and owns request orchestration
+  (timeout, abort, retry, text cleaning); `useChat` only owns the per-submit `AbortController`.
+- `AbortController` is per-submit; the timeout also calls `controller.abort()` to close the HTTP
+  connection to Ollama. `withRetry` does **not** retry `AbortError` — user cancellation is
+  intentional.
+- **Startup model resolution** — the configured `MODEL` is a *preferred* default, not a hard
+  requirement. On mount `useChat` calls `resolveStartupModel()` (`/api/tags`): `"ok"` if
+  installed; `"no-models"` → posts a "pull one first" notice and blocks translation; `"fallback"`
+  → switches to the first installed model and tells the user (so the app works on any machine).
+  `verifyModel()` still warns after a manual `/model <name>` switch.
+
+### UI / commands
+
+- In-app commands (`/from`, `/to`, `/model`, `/temp`, `/clear`, `/help`, `/exit`) are parsed by
+  `parseCommand()` and never sent to Ollama. **Bare `/model`** and **bare `/temp`** open pickers
+  (`ModelPicker` / `TempPicker`) in place of the `InputBar`; `/model <name>` and `/temp <value>`
+  apply directly. Only one of InputBar / ModelPicker / TempPicker is mounted at a time so their
+  `useInput` handlers don't compete for keys.
+- Chat messages render as **cards** (built-in Ink `<Box borderStyle="round">`, per-role
+  `borderColor`) with a header row (role + `HH:MM`) *inside* the card — not an in-border title.
+  `@mishieck/ink-titled-box` was tried for the in-border title and reverted: it positions the
+  title via `measureElement` + `useEffect`, which mis-renders full-width cards in a wide
+  terminal (missing top-left corner / left border). Don't reach for it again.
+
+### Tooling
+
+The *what* is in the config files (`.oxlintrc.json`, `.oxfmtrc.json`, `knip.json`,
+`lefthook.yml`) — those are strict JSON/YAML and can't hold comments, so the non-obvious
+*why* / future-action notes live here:
+
+- **Lint:** [oxlint](https://oxc.rs/) (`.oxlintrc.json`) — incl. `import/no-cycle` for
+  circular-dependency detection (auto-reads `tsconfig` for the `@/*` alias; no separate
+  madge/dpdm needed). ESLint removed.
+- **Format:** [oxfmt](https://oxc.rs/) (`.oxfmtrc.json`) — also does import sorting via
+  `sortImports`. Prettier removed. **MD & YAML are excluded** because oxfmt 0.56 throws
+  `DataCloneError` on them — re-enable once fixed upstream.
+- **Dead code:** [knip](https://knip.dev/) (`knip.json`), run as `npm run lint:unused` (folds
+  into `npm run verify`). Kept **out of pre-commit** — it resolves the whole module graph, so
+  it can't run on staged files only.
+- **Deps graph:** [skott](https://github.com/antoine-coulon/skott), `npm run start:deps-graph`
+  — visualization only, **not a CI gate** (a skott-based circular check was benchmarked at
+  ~600 ms/run and rejected in favor of oxlint's `import/no-cycle`). Works on **TS 6 only** —
+  if TypeScript is bumped to 7, `start:deps-graph` breaks (`ERR_PACKAGE_PATH_NOT_EXPORTED`);
+  run it via `bunx skott@<ver> …` instead.
+- **Git hooks:** [Lefthook](https://lefthook.dev/) (`lefthook.yml`) — pre-commit fix+format on
+  staged files, pre-push `verify` + `bun audit`. Replaced Husky + lint-staged.
