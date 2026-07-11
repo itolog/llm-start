@@ -27,7 +27,6 @@ export function useChat({
   const [stats, setStats] = useState<TranslationStats | null>(null);
   // Non-null while the model picker is open (holds the installed model tags).
   const [modelItems, setModelItems] = useState<string[] | null>(null);
-  // Whether the temperature stepper is open.
   const [tempPickerOpen, setTempPickerOpen] = useState(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -132,7 +131,6 @@ export function useChat({
     [setModel, addMessage, verifyModel],
   );
 
-  // Picker selection: close it, then apply the chosen model.
   const selectModel = useCallback(
     async (model: string) => {
       setModelItems(null);
@@ -153,7 +151,6 @@ export function useChat({
     [setTemp, addMessage],
   );
 
-  // Stepper selection: close it, then apply the chosen temperature.
   const selectTemp = useCallback(
     (temp: number) => {
       setTempPickerOpen(false);

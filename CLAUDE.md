@@ -99,6 +99,18 @@ progress header, update rules). Default location is **`plans/`** (git-tracked);
 honor an explicit override if the user names a different path. Update the
 existing plan file in place rather than creating a duplicate.
 
+## Code style
+
+Judgement calls the linters can't enforce live in **`docs/style-guide.md`**.
+Most important: **comment the *why*, never the *what*** for inline comments —
+delete ones that merely restate the name or body; keep the ones that record an
+invariant, trade-off, or a rejected approach. (Doc comments on the public API —
+exported types, service methods — are the exception: describing *what* they do
+is good, prefer JSDoc.) Standout comments use the
+[Better Comments](https://marketplace.visualstudio.com/items?itemName=aaron-bond.better-comments)
+tags (`// !` alert, `// * ` highlight, `// ? ` query, `// TODO:`), reserved for
+the few comments that need to stand out. See the guide for details.
+
 ## Key Decisions
 
 Non-obvious choices and their *why* — the reasoning you can't recover from the code. Extended

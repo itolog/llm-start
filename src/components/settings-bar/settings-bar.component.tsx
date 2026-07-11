@@ -1,7 +1,8 @@
 import React from "react";
 
-import { Box, Text } from "ink";
+import { Box } from "ink";
 
+import { Pill } from "./components/pill";
 import { SettingsBarProps } from "./settings-bar.type";
 
 export const SettingsBar = ({
@@ -10,10 +11,9 @@ export const SettingsBar = ({
   model,
   temp,
 }: SettingsBarProps) => (
-  <Box backgroundColor="gray">
-    <Text>
-      {" "}
-      Settings: {fromLang} ➔ {toLang} │ {model} @ temp {temp}{" "}
-    </Text>
+  <Box flexWrap="wrap" columnGap={2}>
+    <Pill label="LANG" value={`${fromLang} → ${toLang}`} color="cyan" />
+    <Pill label="MODEL" value={model} color="magenta" />
+    <Pill label="TEMP" value={String(temp)} color="yellow" />
   </Box>
 );

@@ -44,12 +44,6 @@ export const App = () => {
   return (
     <Box flexDirection="column" padding={1}>
       <Header />
-      <SettingsBar
-        fromLang={fromLang}
-        toLang={toLang}
-        model={model}
-        temp={temp}
-      />
       <MessageList messages={messages} />
 
       {match({ isLoading, stats })
@@ -58,6 +52,16 @@ export const App = () => {
           <StatsBar stats={stats} />
         ))
         .otherwise(() => null)}
+
+      {/* SettingsBar sits at the tail of the tree, right above the prompt, so it
+          stays visible no matter how long the chat history grows (Ink shows the
+          bottom of the output). */}
+      <SettingsBar
+        fromLang={fromLang}
+        toLang={toLang}
+        model={model}
+        temp={temp}
+      />
 
       {match({ modelItems, tempPickerOpen })
         .with({ modelItems: P.nonNullable }, ({ modelItems }) => (

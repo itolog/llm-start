@@ -23,7 +23,6 @@ export const MessageItem = ({ msg }: MessageItemProps) => (
     borderStyle="round"
     borderColor={ROLE_COLOR[msg.role]}
     paddingX={1}>
-    {/* Header row: role on the left, timestamp on the right. */}
     <Box justifyContent="space-between">
       <Text color={ROLE_COLOR[msg.role]} bold>
         {msg.role}
