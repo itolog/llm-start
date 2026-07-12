@@ -2,6 +2,7 @@ import React, { useState } from "react";
 
 import { Box, Text, useInput } from "ink";
 import TextInput from "ink-text-input";
+import { match } from "ts-pattern";
 
 import { CommandSuggestions } from "@/components/command-suggestions";
 
@@ -41,17 +42,18 @@ export const InputBar = ({ value, onChange, onSubmit }: InputBarProps) => {
   // key handling; Enter goes through TextInput's onSubmit (handleSubmit below).
   useInput(
     (_input, key) => {
-      if (key.upArrow) {
-        setSelectedIndex(
-          (i) => (i - 1 + suggestions.length) % suggestions.length,
-        );
-      } else if (key.downArrow) {
-        setSelectedIndex((i) => (i + 1) % suggestions.length);
-      } else if (key.tab) {
-        complete();
-      } else if (key.escape) {
-        setDismissed(true);
-      }
+      match(key)
+        .with({ upArrow: true }, () => {
+          setSelectedIndex(
+            (i) => (i - 1 + suggestions.length) % suggestions.length,
+          );
+        })
+        .with({ downArrow: true }, () => {
+          setSelectedIndex((i) => (i + 1) % suggestions.length);
+        })
+        .with({ tab: true }, complete)
+        .with({ escape: true }, () => setDismissed(true))
+        .otherwise(() => {});
     },
     { isActive: isOpen },
   );
