@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-import { Box } from "ink";
+import { Box, useWindowSize } from "ink";
 import { match, P } from "ts-pattern";
 
 import { Header } from "@/components/header";
@@ -15,6 +15,7 @@ import { config } from "@/config";
 import { useChat } from "@/hooks/use-chat";
 
 export const App = () => {
+  const { rows } = useWindowSize();
   const [fromLang, setFromLang] = useState("english");
   const [toLang, setToLang] = useState("polish");
   const [model, setModel] = useState(config.MODEL);
@@ -41,8 +42,18 @@ export const App = () => {
     setTemp,
   });
 
+  // ! minHeight + flex-end keeps the frame at least terminal-height with the
+  // prompt pinned to the bottom edge. Without it the frame height oscillates
+  // around `stdout.rows` when transient UI (command suggestions) opens/closes,
+  // and Ink's two rendering modes (in-place erase vs. full-screen repaint)
+  // disagree on where to anchor the frame — the shrunk frame gets repainted at
+  // the TOP of the screen, leaving a stale blank region under the prompt.
   return (
-    <Box flexDirection="column" padding={1}>
+    <Box
+      flexDirection="column"
+      padding={1}
+      minHeight={rows}
+      justifyContent="flex-end">
       <Header />
       <MessageList messages={messages} />
 
