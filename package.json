@@ -61,7 +61,7 @@
     "oxfmt": "0.58.0",
     "oxlint": "1.73.0",
     "skott": "0.35.11",
-    "typescript": "6.0.3",
+    "typescript": "7.0.2",
     "vitest": "4.1.10"
   },
   "engines": {
