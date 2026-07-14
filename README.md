@@ -47,7 +47,7 @@ A terminal-based chat translator built with **Ink** (React for CLI), **LangChain
 Start the TUI:
 
 ```bash
-npm start
+bun start
 ```
 
 On startup the app checks Ollama for installed models: if the preferred `MODEL`
@@ -94,9 +94,9 @@ See `CLAUDE.md` for the full module/naming convention.
 
 ## 🛠 Development
 
-- **Run in watch mode**: `npm run dev`
-- **Linting**: `npm run lint` (powered by [Oxc](https://oxc.rs/) / `oxlint`)
-- **Formatting**: `npm run format` (powered by [Oxc](https://oxc.rs/) / `oxfmt`)
-- **Tests**: `npm test` (Vitest)
-- **Full verification**: `npm run verify` (lint + tests)
-- **Build a standalone binary**: `npm run build` → `dist/lang-app`
+- **Run in watch mode**: `bun run dev`
+- **Linting**: `bun run lint` (powered by [Oxc](https://oxc.rs/) / `oxlint`)
+- **Formatting**: `bun run format` (powered by [Oxc](https://oxc.rs/) / `oxfmt`)
+- **Tests**: `bun run test` (Vitest — note: `bun run test`, not `bun test`)
+- **Full verification**: `bun run verify` (lint + tests)
+- **Build a standalone binary**: `bun run build` → `dist/lang-app`

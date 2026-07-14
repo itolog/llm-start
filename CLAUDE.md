@@ -15,33 +15,36 @@ A terminal-based translation app (TUI) built with **Ink** (React for CLI), **Lan
 
 ## Commands
 
+**`bun` is the only package manager and script runner here — never invoke `npm`, `npx`,
+`yarn`, or `pnpm`.** Use `bun run <script>` for scripts and `bunx <tool>` for one-off binaries.
+
 ```bash
-npm start             # Run the TUI app
-npm run dev           # Run with file watching (bun --watch)
-npm run build         # Compile to a standalone binary (dist/lang-app) via bun --compile
+bun start             # Run the TUI app
+bun run dev           # Run with file watching (bun --watch)
+bun run build         # Compile to a standalone binary (dist/lang-app) via bun --compile
 
 # Linting (run in parallel via concurrently)
-npm run lint          # Run all lint:* checks in parallel
-npm run lint:code     # Lint check
-npm run lint:types    # Type check (tsc --noEmit)
-npm run lint:format   # Format check
-npm run lint:unused   # Unused files, dependencies, and exports
-npm run fix:lint      # Auto-fix lint errors
+bun run lint          # Run all lint:* checks in parallel
+bun run lint:code     # Lint check
+bun run lint:types    # Type check (tsc --noEmit)
+bun run lint:format   # Format check
+bun run lint:unused   # Unused files, dependencies, and exports
+bun run fix:lint      # Auto-fix lint errors
 
 # Formatting
-npm run format        # Format all files
+bun run format        # Format all files
 
 # Testing
-npm run test          # Run all tests once
-npm run test:watch    # Run tests in watch mode
+bun run test          # Run all tests once  (! `bun run test`, never `bun test`)
+bun run test:watch    # Run tests in watch mode
 
 # Full verification — run this after every completed task
-npm run verify        # npm run lint && npm run test
+bun run verify        # bun run lint && bun run test
 ```
 
 ## After completing a task
 
-Always run `npm run verify` before considering a task done. It runs all linters and tests in one command. Fix any errors before moving on.
+Always run `bun run verify` before considering a task done. It runs all linters and tests in one command. Fix any errors before moving on.
 
 ## Architecture
 
@@ -120,8 +123,9 @@ file (not this list) when the detail changes.
 ### Runtime & build
 
 - **`bun`** runs the app (`bun src/index.tsx`) and is the package manager. **`vitest`** is the
-  test runner — use `npm run test`, **never** `bun test` (different runtime, incompatible APIs).
-- `npm run build` produces a **standalone binary** (`dist/lang-app`) via `bun build --compile
+  test runner — use `bun run test`, **never** `bun test` (different runtime, incompatible APIs).
+  `bunfig.toml` sets `[run] bun = true`, so even tools with a `node` shebang execute on Bun.
+- `bun run build` produces a **standalone binary** (`dist/lang-app`) via `bun build --compile
   --minify`. `react-devtools-core` (Ink's dev-only import) is aliased to an empty stub via
   `tsconfig` `paths` so it isn't bundled.
 - JSX target is `"react"` (classic runtime), not `"react-jsx"` — Ink uses React but not the
@@ -178,10 +182,10 @@ The *what* is in the config files (`.oxlintrc.json`, `.oxfmtrc.json`, `knip.json
 - **Format:** [oxfmt](https://oxc.rs/) (`.oxfmtrc.json`) — also does import sorting via
   `sortImports`. Prettier removed. **MD & YAML are excluded** because oxfmt 0.56 throws
   `DataCloneError` on them — re-enable once fixed upstream.
-- **Dead code:** [knip](https://knip.dev/) (`knip.json`), run as `npm run lint:unused` (folds
-  into `npm run verify`). Kept **out of pre-commit** — it resolves the whole module graph, so
+- **Dead code:** [knip](https://knip.dev/) (`knip.json`), run as `bun run lint:unused` (folds
+  into `bun run verify`). Kept **out of pre-commit** — it resolves the whole module graph, so
   it can't run on staged files only.
-- **Deps graph:** [skott](https://github.com/antoine-coulon/skott), `npm run start:deps-graph`
+- **Deps graph:** [skott](https://github.com/antoine-coulon/skott), `bun run start:deps-graph`
   — visualization only, **not a CI gate** (a skott-based circular check was benchmarked at
   ~600 ms/run and rejected in favor of oxlint's `import/no-cycle`). Works on **TS 6 only** —
   if TypeScript is bumped to 7, `start:deps-graph` breaks (`ERR_PACKAGE_PATH_NOT_EXPORTED`);
