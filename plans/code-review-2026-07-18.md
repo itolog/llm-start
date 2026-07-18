@@ -1,6 +1,6 @@
 # Code Review 2026-07-18
 
-> Progress: 10/13 · Created: 2026-07-18 · Updated: 2026-07-18
+> Progress: 11/13 · Created: 2026-07-18 · Updated: 2026-07-18
 > Branch: `main` · Scope: Full project review
 
 ## A. Architecture
@@ -98,7 +98,7 @@
 | ID | Task | Status | Date |
 | --- | --- | --- | --- |
 | C1 | Add smoke test for the full App component | ✅ done | 2026-07-18 |
-| C2 | Add render/interaction tests for the Ink components | ⬜ todo | — |
+| C2 | Add render/interaction tests for the Ink components | ✅ done | 2026-07-18 |
 
 ### Notes
 
@@ -111,11 +111,16 @@
   sync) that the unit tests mocked away. `ink-testing-library@4` added as a
   devDependency; kept as `.test.ts` (no JSX, `React.createElement`) so it
   matches the `src/**/*.test.ts` vitest include and the naming convention.
-- **C2** — Follow-up unlocked by ink-testing-library: `stdin.write()` can
-  drive the interactive components — `InputBar` autocomplete (↑/↓/Tab/Esc),
-  `TempPicker` (←/→), `ModelPicker` selection — which currently have no
-  render-level coverage (only the hook logic is tested). Lower priority than
-  the A/B refactors.
+- **C2** — Done: render/interaction tests for the three interactive
+  components via `ink-testing-library` `stdin.write()` — `temp-picker.test.ts`
+  (←/→ adjust + clamp, Enter applies, Esc cancels), `model-picker.test.ts`
+  (list, ↓ highlight, Enter selects, Esc cancels), `input-bar.test.ts`
+  (suggestions show/hide, prefix narrowing, ↓ + Tab/Enter complete, Esc
+  dismiss, Enter submits plain text). +19 tests (162 total). Two gotchas
+  captured for future component tests: (1) build control sequences from
+  `String.fromCharCode(27)` so the source has no invisible bytes; (2) ink
+  attaches its stdin listener in a mount effect and flushes asynchronously, so
+  `await` a short `tick()` before and after each `stdin.write`.
 
 ## D. Linter / cleanup
 
@@ -172,7 +177,7 @@
 4. **A5 + A4 + A3** — done: baseUrl passthrough, OLLAMA_URL env var, and the
    Ink error boundary; all additive, no refactoring.
 5. **E1** — self-contained UI tweak; needs manual terminal verification.
-6. **C2** — component render/interaction tests (C1 smoke test already done).
+6. **C2** — done: component render/interaction tests.
 7. **B1** — pending decision; do last if at all.
 
 ## History
@@ -206,3 +211,5 @@
 - 2026-07-18 — D2 reopened + actually finished: `russian` test examples → `german`,
   SKILL.md "Russian" → "Spanish", and a leftover `## История` → `## History`
   (D1 miss). Whole-project grep for Russia refs and Cyrillic is now clean.
+- 2026-07-18 — C2 done: interaction tests for TempPicker / ModelPicker /
+  InputBar via ink-testing-library stdin.write (+19; 162 total). verify green.
