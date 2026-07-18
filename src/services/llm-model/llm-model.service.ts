@@ -95,18 +95,18 @@ class LlmModelService {
     const startedAt = Date.now();
     const res: ChainResponse = await withRetry(
       async () => {
-        const controller = new AbortController();
+        const timeoutController = new AbortController();
         const timeoutId = setTimeout(
-          () => controller.abort(),
+          () => timeoutController.abort(),
           appConfig.LLM_TIMEOUT_MS,
         );
-        // Propagate the external signal (unmount / new submit) to close the
-        // HTTP connection to Ollama, same as the timeout does.
-        const onAbort = () => controller.abort();
-        if (signal) {
-          if (signal.aborted) controller.abort();
-          else signal.addEventListener("abort", onAbort, { once: true });
-        }
+        // One signal for this attempt: aborts on our timeout OR the caller's
+        // signal (unmount / new submit). AbortSignal.any wires up (and tears
+        // down) the listeners itself, and starts aborted if the caller's
+        // signal already is — no manual add/removeEventListener bookkeeping.
+        const attemptSignal = signal
+          ? AbortSignal.any([signal, timeoutController.signal])
+          : timeoutController.signal;
         try {
           const stream = await this.chain.stream(
             {
@@ -114,7 +114,7 @@ class LlmModelService {
               output_language: toLang,
               input: text,
             },
-            { signal: controller.signal },
+            { signal: attemptSignal },
           );
           // Concatenate chunks so the aggregate carries the final token-usage
           // metadata (Ollama emits eval counts on the last chunk).
@@ -130,7 +130,6 @@ class LlmModelService {
           return aggregate;
         } finally {
           clearTimeout(timeoutId);
-          signal?.removeEventListener("abort", onAbort);
         }
       },
       { retries: 1, delayMs: 1000 },

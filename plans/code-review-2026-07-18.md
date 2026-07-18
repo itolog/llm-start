@@ -1,6 +1,6 @@
 # Code Review 2026-07-18
 
-> Progress: 8/13 · Created: 2026-07-18 · Updated: 2026-07-18
+> Progress: 9/13 · Created: 2026-07-18 · Updated: 2026-07-18
 > Branch: `main` · Scope: Full project review
 
 ## A. Architecture
@@ -60,7 +60,7 @@
 | ID | Task | Status | Date |
 | --- | --- | --- | --- |
 | B1 | Refactor parseCommand to use ts-pattern | 💬 discuss | — |
-| B2 | Replace manual abort listener with AbortSignal.any | ⬜ todo | — |
+| B2 | Replace manual abort listener with AbortSignal.any | ✅ done | 2026-07-18 |
 | B3 | Remove unnecessary config mutation from LlmModelService | ❌ wontdo | 2026-07-18 |
 | B4 | Reset stale StatsBar after error, cancel, and /clear | ⬜ todo | — |
 
@@ -72,15 +72,17 @@
   matters — ts-pattern would not actually prevent the mis-ordering risk the
   original note cited. The current chain is readable; only do this if
   consistency with the rest of the codebase is valued over brevity.
-- **B2** — In `llm-model.service.ts:translate()`, the AbortSignal listener
-  is added/removed inside the retry callback. Simply hoisting the listener
-  out of the retry is **not** viable: the `AbortController` is per-attempt
-  (abort is one-shot — after attempt 1 times out, attempt 2 needs a fresh
-  controller), so the listener must reference the current attempt's
-  controller. The right fix is
-  `AbortSignal.any([signal, AbortSignal.timeout(ms)])` per attempt — the
-  manual listener, `setTimeout`, and teardown all disappear (Bun supports
-  both APIs).
+- **B2** — Done: each attempt now builds one `attemptSignal` via
+  `AbortSignal.any([signal, timeoutController.signal])`, dropping the manual
+  `onAbort` + `add`/`removeEventListener` bookkeeping and the
+  `if (signal.aborted)` branch (AbortSignal.any starts aborted if the caller's
+  signal already is). **Kept `setTimeout` + a timeout `AbortController`** rather
+  than `AbortSignal.timeout(ms)` on purpose: (1) `AbortSignal.timeout` aborts
+  with a `TimeoutError`, which would flip the retry (`withRetry` skips only
+  `AbortError`) and user-facing message semantics; (2) it uses a native timer
+  that vitest fake timers don't advance, breaking the 60s timeout test.
+  timeoutController.abort() keeps the `AbortError` reason, so behavior +
+  all tests are unchanged.
 - **B3** — Wontdo as a separate task: this is the same root cause as A2
   (dual source of truth between mutable `config` and React state). Folded
   into A2's fix; keeping both would double-count the work.
@@ -189,3 +191,6 @@
   env var for the Ollama host; `baseUrl` passed to ChatOllama (inference +
   /api/tags share one host). 140 tests, verify + build green; env→baseUrl flow
   verified at runtime.
+- 2026-07-18 — B2 done: per-attempt AbortSignal.any replaces the manual abort
+  listener; timeout kept on setTimeout+controller to preserve AbortError
+  semantics and fake-timer tests. 140 tests, verify + build green.
