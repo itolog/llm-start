@@ -42,7 +42,7 @@ export function useChat({
     cancelTempPicker,
   } = useModel({ addMessage });
 
-  const { isLoading, stats, handleTranslate } = useTranslation({
+  const { isLoading, stats, handleTranslate, resetStats } = useTranslation({
     fromLang,
     toLang,
     modelAvailableRef,
@@ -50,6 +50,13 @@ export function useChat({
     appendMessage,
     updateMessage,
   });
+
+  // /clear wipes both the transcript and the last request's stats — otherwise
+  // the StatsBar would linger under an empty chat.
+  const clearChat = useCallback(() => {
+    clear();
+    resetStats();
+  }, [clear, resetStats]);
 
   // Appends the commands reference (rendered by CommandsHelp).
   const showHelp = useCallback(() => {
@@ -78,7 +85,7 @@ export function useChat({
       .with({ type: "models" }, () => openModelPicker())
       .with({ type: "temp" }, ({ temp }) => applyTemp(temp))
       .with({ type: "tempPicker" }, () => openTempPicker())
-      .with({ type: "clear" }, clear)
+      .with({ type: "clear" }, clearChat)
       .with({ type: "help" }, showHelp)
       .with({ type: "exit" }, () => exit())
       .with({ type: "translate" }, ({ text }) => handleTranslate(text))
@@ -87,7 +94,7 @@ export function useChat({
     input,
     isLoading,
     addMessage,
-    clear,
+    clearChat,
     showHelp,
     exit,
     handleTranslate,
@@ -105,7 +112,7 @@ export function useChat({
     input,
     setInput,
     submit,
-    clear,
+    clear: clearChat,
     stats,
     model,
     temp,

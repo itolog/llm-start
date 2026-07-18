@@ -40,6 +40,10 @@ export function useTranslation({
       }
       addMessage("You", text);
       setIsLoading(true);
+      // Drop the previous request's stats up front so a failed/cancelled
+      // translation doesn't leave the StatsBar showing numbers for it — they
+      // are only restored below on success.
+      setStats(null);
       abortControllerRef.current?.abort();
       const controller = new AbortController();
       abortControllerRef.current = controller;
@@ -84,5 +88,7 @@ export function useTranslation({
     ],
   );
 
-  return { isLoading, stats, handleTranslate };
+  const resetStats = useCallback(() => setStats(null), []);
+
+  return { isLoading, stats, handleTranslate, resetStats };
 }

@@ -181,6 +181,17 @@ describe("useChat", () => {
     expect(mockTranslate).toHaveBeenCalledTimes(1); // /clear is not sent to the LLM
   });
 
+  it("/clear also resets the translation stats", async () => {
+    mockTranslate.mockResolvedValue(translationResult("bonjour"));
+    const { result } = setup();
+
+    await submitText(result, "hello");
+    expect(result.current.stats).toMatchObject(fakeStats);
+
+    await submitText(result, "/clear");
+    expect(result.current.stats).toBeNull();
+  });
+
   it("routes /from to setFromLang and never calls the LLM", async () => {
     const { result, setFromLang } = setup();
 

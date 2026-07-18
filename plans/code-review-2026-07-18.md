@@ -1,6 +1,6 @@
 # Code Review 2026-07-18
 
-> Progress: 9/13 · Created: 2026-07-18 · Updated: 2026-07-18
+> Progress: 10/13 · Created: 2026-07-18 · Updated: 2026-07-18
 > Branch: `main` · Scope: Full project review
 
 ## A. Architecture
@@ -62,7 +62,7 @@
 | B1 | Refactor parseCommand to use ts-pattern | 💬 discuss | — |
 | B2 | Replace manual abort listener with AbortSignal.any | ✅ done | 2026-07-18 |
 | B3 | Remove unnecessary config mutation from LlmModelService | ❌ wontdo | 2026-07-18 |
-| B4 | Reset stale StatsBar after error, cancel, and /clear | ⬜ todo | — |
+| B4 | Reset stale StatsBar after error, cancel, and /clear | ✅ done | 2026-07-18 |
 
 ### Notes
 
@@ -86,11 +86,12 @@
 - **B3** — Wontdo as a separate task: this is the same root cause as A2
   (dual source of truth between mutable `config` and React state). Folded
   into A2's fix; keeping both would double-count the work.
-- **B4** — `App` renders `StatsBar` whenever `stats` is non-null and not
-  loading. After a cancelled/failed translation (and after `/clear`) the
-  stats from the *previous successful* request reappear under the chat,
-  which reads as stats for the failed one. Clear `stats` at the start of
-  `handleTranslate` (or on error/cancel) and in `clear()`.
+- **B4** — Done: `handleTranslate` now calls `setStats(null)` up front (so a
+  cancelled/failed request leaves no stats; success restores them below), and
+  `useTranslation` exposes `resetStats`. `useChat` composes a `clearChat` that
+  runs both `clear()` (transcript) and `resetStats()`, wired to `/clear` and
+  returned as `clear`. Tests added for the fail-clears-stats, resetStats, and
+  `/clear`-clears-stats paths (143 total).
 
 ## C. Testing
 
@@ -125,14 +126,20 @@
 
 ### Notes
 
-- **D1** — Fixed earlier in the session: translated `Статус`, `Заметки`,
-  `Задача`, `Дата`, `Прогресс`, `Обновлён`, `Удалить`, `должен быть удалён`
-  to English.
-- **D2** — Grep for cyrillic `[а-яА-ЯёЁ]` across all source (`*.ts`, `*.tsx`,
-  `*.json`, `*.toml`, `*.yml`) found **zero matches**. The word "russian"
-  appears only as a language name in test cases (`parse-command.test.ts`),
-  which is legitimate. Grep for `росси`, `russia`, `моск`, `moscow` — clean.
-  No action needed.
+- **D1** — Translated the Cyrillic column headers/labels in the plan-format
+  skill (status, notes, task, date, progress, updated, delete, "must be
+  deleted") to English. A follow-up pass later caught one leftover the first
+  sweep missed: the update-rule step referenced a `## История` section — fixed
+  to `## History` (matches the English template heading).
+- **D2** — Reopened: the initial "no action needed" call was wrong. `parse-command.test.ts`
+  used `russian` as the example language throughout (`/from`, priority tests),
+  and the plan skill still had one `Russian` mention. Purged: test examples
+  switched to `german` (consistent with `use-chat.test.ts`); SKILL.md's
+  illustrative "a chat in Russian" → "a chat in Spanish". Whole-project grep
+  for `russia|russian|росси|moscow` **and** any Cyrillic `[а-яА-ЯёЁ]` across
+  `src/`, `docs/`, `.claude/`, `README.md`, `CLAUDE.md` now returns zero
+  matches. Task titles below keep the word "Russia" only as the name of the
+  cleanup work.
 
 ## E. UI / UX
 
@@ -194,3 +201,8 @@
 - 2026-07-18 — B2 done: per-attempt AbortSignal.any replaces the manual abort
   listener; timeout kept on setTimeout+controller to preserve AbortError
   semantics and fake-timer tests. 140 tests, verify + build green.
+- 2026-07-18 — B4 done: stats cleared at the start of each translation and via
+  resetStats; /clear now wipes stats too (clearChat). 143 tests, verify green.
+- 2026-07-18 — D2 reopened + actually finished: `russian` test examples → `german`,
+  SKILL.md "Russian" → "Spanish", and a leftover `## История` → `## History`
+  (D1 miss). Whole-project grep for Russia refs and Cyrillic is now clean.

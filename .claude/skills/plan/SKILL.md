@@ -83,13 +83,13 @@ Exactly one status per task, in the Status column:
 1. Change the task's Status and Date — do not move or delete rows.
 2. Update the `Progress: <done>/<total>` counter and `Updated:` date in the
    header (`✅` counts as done; `❌` reduces total).
-3. Append one line to `## История` (date — what changed).
+3. Append one line to `## History` (date — what changed).
 4. Superseded/obsolete tasks become `❌ wontdo` with a reason — never silently
    deleted, so the plan stays an honest record.
 
 ### Language
 
 Plan files are written in **English** — headers, task text, and notes. This is
-independent of the conversation language (a chat in Russian still produces an
+independent of the conversation language (a chat in Spanish still produces an
 English plan file). Code identifiers, paths, and tool names stay in their
 original form.

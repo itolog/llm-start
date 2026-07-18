@@ -134,4 +134,33 @@ describe("useTranslation", () => {
     const id = appendedId(appendMessage);
     expect(updateMessage).toHaveBeenLastCalledWith(id, "Error: boom");
   });
+
+  it("clears the previous request's stats when a translation fails", async () => {
+    mockTranslate.mockResolvedValueOnce(translationResult("bonjour"));
+    const { result } = setup();
+
+    await act(async () => {
+      await result.current.handleTranslate("hello");
+    });
+    expect(result.current.stats).toMatchObject(fakeStats);
+
+    mockTranslate.mockRejectedValueOnce(new Error("boom"));
+    await act(async () => {
+      await result.current.handleTranslate("again");
+    });
+    expect(result.current.stats).toBeNull();
+  });
+
+  it("resetStats clears the stats", async () => {
+    mockTranslate.mockResolvedValue(translationResult("bonjour"));
+    const { result } = setup();
+
+    await act(async () => {
+      await result.current.handleTranslate("hello");
+    });
+    expect(result.current.stats).toMatchObject(fakeStats);
+
+    act(() => result.current.resetStats());
+    expect(result.current.stats).toBeNull();
+  });
 });
