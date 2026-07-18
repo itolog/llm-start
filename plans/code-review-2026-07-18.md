@@ -1,6 +1,6 @@
 # Code Review 2026-07-18
 
-> Progress: 4/13 · Created: 2026-07-18 · Updated: 2026-07-18
+> Progress: 5/13 · Created: 2026-07-18 · Updated: 2026-07-18
 > Branch: `main` · Scope: Full project review
 
 ## A. Architecture
@@ -8,7 +8,7 @@
 | ID | Task | Status | Date |
 | --- | --- | --- | --- |
 | A1 | Split useChat into smaller hooks | ✅ done | 2026-07-18 |
-| A2 | Eliminate dual source of truth for config | ⬜ todo | — |
+| A2 | Eliminate dual source of truth for config | ✅ done | 2026-07-18 |
 | A3 | Introduce an Ink error boundary | ⬜ todo | — |
 | A4 | Add environment variable support for Ollama URL | ⬜ todo | — |
 | A5 | Pass `OLLAMA_BASE_URL` to ChatOllama in LlmModelService | ⬜ todo | — |
@@ -26,12 +26,18 @@
   tests, 133 total). `WELCOME_MESSAGE` moved into the useMessages module;
   `use-chat.model.ts` removed. Pure refactor — no behavior change. Stale-stats
   clearing on error/cancel/clear stays out of scope (that is B4).
-- **A2** — `config.MODEL` and `config.LLM_TEMP` in the mutable global config
-  are mutated by `LlmModelService.setModel()` / `setTemperature()`, while
-  identical values live in React `useState` in `App`. The hook and service
-  both write to both, creating two sources of truth. Fix: either make config
-  the single source (custom hook reads config directly) or remove config
-  mutation from the service (pass values via params instead).
+- **A2** — Done (absorbs B3): `LlmModelService` is now the single source of
+  truth for the active model + temperature. It holds them as private fields
+  (seeded from `defaultModelConfig`), and `setModel`/`setTemperature` rebuild
+  the chain and `notify()` subscribers. Added an external-store surface
+  (`subscribe` / `getModel` / `getTemperature`, arrow fields for stable
+  identity); `useModel` reads them via `useSyncExternalStore`, so the UI
+  re-renders on change with no duplicate in `App` state. Removed the mutable
+  global `config` object entirely (`@/config` now exports only
+  `defaultModelConfig` + `appConfig`); `App` dropped its `model`/`temp`
+  `useState` and `useChat` no longer takes `setModel`/`setTemp`. CLAUDE.md
+  updated (config layout + LLM-service single-source note). Verify + build
+  green (136 tests).
 - **A3** — Ink supports error boundaries via `react-error-boundary` or a
   custom wrapper. Currently any render crash (e.g., corrupt message state)
   kills the app with no recovery. Add a boundary around `<App>` in
@@ -175,3 +181,6 @@
 - 2026-07-18 — C1 done: App smoke test via ink-testing-library (134 tests);
   added `ink-testing-library` devDependency. C2 added as follow-up for
   component render/interaction tests.
+- 2026-07-18 — A2 done (absorbs B3): LlmModelService is the single source of
+  truth for active model/temp; React reads it via useSyncExternalStore; mutable
+  global `config` removed. 136 tests, verify + build green.

@@ -9,7 +9,10 @@ import { UseTranslationOptions } from "./use-translation.type";
 const { mockTranslate } = vi.hoisted(() => ({ mockTranslate: vi.fn() }));
 
 vi.mock("@/services/llm-model", () => ({
-  llmModelService: { translate: mockTranslate },
+  llmModelService: {
+    translate: mockTranslate,
+    getModel: () => "gemma4:12b-mlx",
+  },
 }));
 
 import { useTranslation } from "./use-translation.hook";

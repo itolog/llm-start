@@ -25,6 +25,10 @@ vi.mock("@/services/llm-model", () => ({
     setTemperature: mockSetTemp,
     listModels: mockListModels,
     resolveStartupModel: mockResolveStartup,
+    // External-store surface read via useSyncExternalStore.
+    subscribe: () => () => {},
+    getModel: () => "gemma4:12b-mlx",
+    getTemperature: () => 0.1,
   },
 }));
 
@@ -32,16 +36,9 @@ import { useModel } from "./use-model.hook";
 
 function setup(overrides: Partial<UseModelOptions> = {}) {
   const addMessage = vi.fn();
-  const setModel = vi.fn();
-  const setTemp = vi.fn();
-  const options: UseModelOptions = {
-    addMessage,
-    setModel,
-    setTemp,
-    ...overrides,
-  };
+  const options: UseModelOptions = { addMessage, ...overrides };
   const utils = renderHook(() => useModel(options));
-  return { ...utils, addMessage, setModel, setTemp };
+  return { ...utils, addMessage };
 }
 
 beforeEach(() => {
@@ -51,6 +48,12 @@ beforeEach(() => {
 });
 
 describe("useModel", () => {
+  it("exposes the active model and temperature from the service", () => {
+    const { result } = setup();
+    expect(result.current.model).toBe("gemma4:12b-mlx");
+    expect(result.current.temp).toBe(0.1);
+  });
+
   it("marks the model available on an ok startup", async () => {
     const { result } = setup();
     await waitFor(() =>
@@ -63,13 +66,12 @@ describe("useModel", () => {
       status: "fallback",
       model: "llama3",
     });
-    const { result, setModel, addMessage } = setup();
+    const { result, addMessage } = setup();
 
     await waitFor(() =>
       expect(result.current.modelAvailableRef.current).toBe(true),
     );
     expect(mockSetModel).toHaveBeenCalledWith("llama3");
-    expect(setModel).toHaveBeenCalledWith("llama3");
     expect(addMessage).toHaveBeenCalledWith(
       "Bot",
       expect.stringContaining('switched to "llama3"'),
@@ -89,8 +91,8 @@ describe("useModel", () => {
     );
   });
 
-  it("applyModel switches the service + state and re-verifies", async () => {
-    const { result, setModel } = setup();
+  it("applyModel switches the service and re-verifies", async () => {
+    const { result } = setup();
     mockCheckModel.mockClear(); // ignore the mount-time check
 
     await act(async () => {
@@ -98,7 +100,6 @@ describe("useModel", () => {
     });
 
     expect(mockSetModel).toHaveBeenCalledWith("llama3");
-    expect(setModel).toHaveBeenCalledWith("llama3");
     expect(mockCheckModel).toHaveBeenCalledTimes(1);
   });
 
@@ -156,17 +157,16 @@ describe("useModel", () => {
     expect(mockSetModel).not.toHaveBeenCalled();
   });
 
-  it("applyTemp updates the service and state", async () => {
-    const { result, setTemp } = setup();
+  it("applyTemp updates the service", async () => {
+    const { result } = setup();
 
     act(() => result.current.applyTemp(0.7));
 
     expect(mockSetTemp).toHaveBeenCalledWith(0.7);
-    expect(setTemp).toHaveBeenCalledWith(0.7);
   });
 
   it("openTempPicker / selectTemp / cancelTempPicker drive the stepper", async () => {
-    const { result, setTemp } = setup();
+    const { result } = setup();
 
     act(() => result.current.openTempPicker());
     expect(result.current.tempPickerOpen).toBe(true);
@@ -174,7 +174,6 @@ describe("useModel", () => {
     act(() => result.current.selectTemp(1.2));
     expect(result.current.tempPickerOpen).toBe(false);
     expect(mockSetTemp).toHaveBeenCalledWith(1.2);
-    expect(setTemp).toHaveBeenCalledWith(1.2);
 
     act(() => result.current.openTempPicker());
     act(() => result.current.cancelTempPicker());

@@ -11,15 +11,12 @@ import { ModelPicker } from "@/components/model-picker";
 import { SettingsBar } from "@/components/settings-bar";
 import { StatsBar } from "@/components/stats-bar";
 import { TempPicker } from "@/components/temp-picker";
-import { config } from "@/config";
 import { useChat } from "@/hooks/use-chat";
 
 export const App = () => {
   const { rows } = useWindowSize();
   const [fromLang, setFromLang] = useState("english");
   const [toLang, setToLang] = useState("polish");
-  const [model, setModel] = useState(config.MODEL);
-  const [temp, setTemp] = useState(config.LLM_TEMP);
   const {
     messages,
     isLoading,
@@ -27,6 +24,8 @@ export const App = () => {
     setInput,
     submit,
     stats,
+    model,
+    temp,
     modelItems,
     selectModel,
     cancelModelPicker,
@@ -38,8 +37,6 @@ export const App = () => {
     toLang,
     setFromLang,
     setToLang,
-    setModel,
-    setTemp,
   });
 
   // ! minHeight + flex-end keeps the frame at least terminal-height with the

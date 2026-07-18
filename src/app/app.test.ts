@@ -17,6 +17,10 @@ vi.mock("@/services/llm-model", () => ({
     listModels: vi.fn(),
     setModel: vi.fn(),
     setTemperature: vi.fn(),
+    // External-store surface read via useSyncExternalStore (useModel).
+    subscribe: () => () => {},
+    getModel: () => "gemma4:12b-mlx",
+    getTemperature: () => 0.1,
   },
 }));
 

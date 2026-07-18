@@ -1,7 +1,7 @@
 import { Runnable } from "@langchain/core/runnables";
 import { ChatOllama } from "@langchain/ollama";
 
-import { appConfig, config } from "@/config";
+import { appConfig, defaultModelConfig } from "@/config";
 import { cleanText } from "@/utils/clean-text";
 import { withRetry } from "@/utils/with-retry";
 
@@ -17,37 +17,63 @@ import { prompt } from "./llm-prompt";
 import { buildStats } from "./utils/build-stats";
 import { modelMatches } from "./utils/model-matches";
 
-// Stateful wrapper around Ollama: owns the chat model + translation chain and
-// encapsulates the request orchestration (timeout, abort, retry, cleanup).
+// Stateful wrapper around Ollama: the single source of truth for the active
+// model + temperature (seeded from the defaults), owns the chat model +
+// translation chain, and encapsulates the request orchestration (timeout,
+// abort, retry, cleanup). React reads the active values via `subscribe` +
+// `getModel`/`getTemperature` (useSyncExternalStore), so there is no duplicate
+// copy of them in component state.
 class LlmModelService {
   private llm!: ChatOllama;
   private chain!: Runnable;
+  private model = defaultModelConfig.MODEL;
+  private temperature = defaultModelConfig.LLM_TEMP;
+  private readonly listeners = new Set<() => void>();
 
   constructor() {
     this.rebuild();
   }
 
-  // (Re)builds the chat model and translation chain from the current config.
-  // Called on construction and whenever MODEL/LLM_TEMP change at runtime.
+  // (Re)builds the chat model and translation chain from the active model +
+  // temperature. Called on construction and whenever they change at runtime.
   private rebuild(): void {
     this.llm = new ChatOllama({
-      model: config.MODEL,
-      temperature: config.LLM_TEMP,
+      model: this.model,
+      temperature: this.temperature,
     });
     this.chain = prompt.pipe(this.llm);
   }
 
+  private notify(): void {
+    for (const listener of this.listeners) listener();
+  }
+
+  // External-store contract for React's useSyncExternalStore. Arrow fields so
+  // the identities stay stable across renders.
+  subscribe = (listener: () => void): (() => void) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
+
+  getModel = (): string => this.model;
+
+  getTemperature = (): number => this.temperature;
+
   // Switches the active model (e.g. the /model command). Callers should re-run
   // checkModelAvailable() afterwards — the new model may not be pulled.
   setModel(model: string): void {
-    config.MODEL = model;
+    this.model = model;
     this.rebuild();
+    this.notify();
   }
 
   // Updates the sampling temperature (e.g. the /temp command).
   setTemperature(temperature: number): void {
-    config.LLM_TEMP = temperature;
+    this.temperature = temperature;
     this.rebuild();
+    this.notify();
   }
 
   // Translates `text`, streaming partial output through `onToken` and returning
@@ -131,13 +157,12 @@ class LlmModelService {
     }
   }
 
-  // Checks the configured model exists in the /api/tags listing.
+  // Checks the active model exists in the /api/tags listing.
   async checkModelAvailable(): Promise<boolean> {
     const tags = await this.fetchTags();
     return tags.some(
       (m) =>
-        modelMatches(config.MODEL, m.name) ||
-        modelMatches(config.MODEL, m.model),
+        modelMatches(this.model, m.name) || modelMatches(this.model, m.model),
     );
   }
 
@@ -156,8 +181,7 @@ class LlmModelService {
 
     const available = tags.some(
       (m) =>
-        modelMatches(config.MODEL, m.name) ||
-        modelMatches(config.MODEL, m.model),
+        modelMatches(this.model, m.name) || modelMatches(this.model, m.model),
     );
     if (available) return { status: "ok" };
 

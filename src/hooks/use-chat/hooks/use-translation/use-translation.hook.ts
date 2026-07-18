@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { config } from "@/config";
 import { llmModelService, TranslationStats } from "@/services/llm-model";
 import { createMessage } from "@/utils/create-message";
 
@@ -32,9 +31,10 @@ export function useTranslation({
   const handleTranslate = useCallback(
     async (text: string) => {
       if (modelAvailableRef.current === false) {
+        const active = llmModelService.getModel();
         addMessage(
           "Bot",
-          `Model "${config.MODEL}" is not available. Please pull it first: ollama pull ${config.MODEL}`,
+          `Model "${active}" is not available. Please pull it first: ollama pull ${active}`,
         );
         return;
       }

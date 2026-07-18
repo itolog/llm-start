@@ -34,6 +34,10 @@ vi.mock("@/services/llm-model", () => ({
     setTemperature: mockSetTemp,
     listModels: mockListModels,
     resolveStartupModel: mockResolveStartup,
+    // External-store surface read via useSyncExternalStore (useModel).
+    subscribe: () => () => {},
+    getModel: () => "gemma4:12b-mlx",
+    getTemperature: () => 0.1,
   },
 }));
 
@@ -42,19 +46,15 @@ import { useChat } from "./use-chat.hook";
 function setup(overrides: Partial<UseChatOptions> = {}) {
   const setFromLang = vi.fn();
   const setToLang = vi.fn();
-  const setModel = vi.fn();
-  const setTemp = vi.fn();
   const options: UseChatOptions = {
     fromLang: "english",
     toLang: "polish",
     setFromLang,
     setToLang,
-    setModel,
-    setTemp,
     ...overrides,
   };
   const utils = renderHook(() => useChat(options));
-  return { ...utils, setFromLang, setToLang, setModel, setTemp };
+  return { ...utils, setFromLang, setToLang };
 }
 
 // Drive one submit: set the input, then call submit.
@@ -200,14 +200,13 @@ describe("useChat", () => {
     expect(texts(result)).toContain("Target language changed to: spanish");
   });
 
-  it("routes /model to the service, state, and re-checks availability", async () => {
-    const { result, setModel } = setup();
+  it("routes /model to the service and re-checks availability", async () => {
+    const { result } = setup();
     mockCheckModel.mockClear(); // ignore the mount-time check
 
     await submitText(result, "/model llama3");
 
     expect(mockSetModel).toHaveBeenCalledWith("llama3");
-    expect(setModel).toHaveBeenCalledWith("llama3");
     expect(mockCheckModel).toHaveBeenCalledTimes(1); // re-verified after switch
     expect(mockTranslate).not.toHaveBeenCalled();
     expect(texts(result)).toContain("Model changed to: llama3");
@@ -215,7 +214,7 @@ describe("useChat", () => {
 
   it("opens the model picker on bare /model, then applies a selection", async () => {
     mockListModels.mockResolvedValue(["gemma3:4b", "llama3"]);
-    const { result, setModel } = setup();
+    const { result } = setup();
     mockCheckModel.mockClear(); // ignore the mount-time check
 
     await submitText(result, "/model");
@@ -229,7 +228,6 @@ describe("useChat", () => {
     });
 
     expect(mockSetModel).toHaveBeenCalledWith("llama3");
-    expect(setModel).toHaveBeenCalledWith("llama3");
     expect(mockCheckModel).toHaveBeenCalledTimes(1); // re-verified after switch
     expect(result.current.modelItems).toBeNull(); // picker closed
     expect(texts(result)).toContain("Model changed to: llama3");
@@ -258,19 +256,18 @@ describe("useChat", () => {
     expect(texts(result).some((t) => t.includes("No models found"))).toBe(true);
   });
 
-  it("routes /temp <value> to the service and state", async () => {
-    const { result, setTemp } = setup();
+  it("routes /temp <value> to the service", async () => {
+    const { result } = setup();
 
     await submitText(result, "/temp 0.7");
 
     expect(mockSetTemp).toHaveBeenCalledWith(0.7);
-    expect(setTemp).toHaveBeenCalledWith(0.7);
     expect(mockTranslate).not.toHaveBeenCalled();
     expect(texts(result)).toContain("Temperature changed to: 0.7");
   });
 
   it("opens the temp stepper on bare /temp, then applies a selection", async () => {
-    const { result, setTemp } = setup();
+    const { result } = setup();
 
     await submitText(result, "/temp");
 
@@ -280,7 +277,6 @@ describe("useChat", () => {
     act(() => result.current.selectTemp(1.2));
 
     expect(mockSetTemp).toHaveBeenCalledWith(1.2);
-    expect(setTemp).toHaveBeenCalledWith(1.2);
     expect(result.current.tempPickerOpen).toBe(false); // stepper closed
     expect(texts(result)).toContain("Temperature changed to: 1.2");
   });
@@ -328,7 +324,7 @@ describe("useChat", () => {
       model: "llama3",
     });
     mockTranslate.mockResolvedValue(translationResult("bonjour"));
-    const { result, setModel } = setup();
+    const { result } = setup();
 
     await waitFor(() =>
       expect(
@@ -336,7 +332,6 @@ describe("useChat", () => {
       ).toBe(true),
     );
     expect(mockSetModel).toHaveBeenCalledWith("llama3"); // service switched
-    expect(setModel).toHaveBeenCalledWith("llama3"); // React state seeded
 
     // translation is not blocked — the fallback model is usable
     await submitText(result, "hello");

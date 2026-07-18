@@ -1,7 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { config } from "@/config";
-
 // Hoisted so the vi.mock factory below can close over it. Replacing the chain
 // keeps the whole test off Ollama — the service constructor builds its chain
 // from `prompt.pipe(llm)`, so stubbing `prompt.pipe` hands it our fake stream.
@@ -206,10 +204,10 @@ describe("llmModelService", () => {
 
   describe("runtime reconfiguration", () => {
     it("setModel updates the active model and keeps translating", async () => {
-      const original = config.MODEL;
+      const original = llmModelService.getModel();
       try {
         llmModelService.setModel("llama3");
-        expect(config.MODEL).toBe("llama3");
+        expect(llmModelService.getModel()).toBe("llama3");
 
         stubStream(makeChunk("ok"));
         await expect(llmModelService.translate(params)).resolves.toMatchObject({
@@ -221,12 +219,26 @@ describe("llmModelService", () => {
     });
 
     it("setTemperature updates the active temperature", () => {
-      const original = config.LLM_TEMP;
+      const original = llmModelService.getTemperature();
       try {
         llmModelService.setTemperature(0.9);
-        expect(config.LLM_TEMP).toBe(0.9);
+        expect(llmModelService.getTemperature()).toBe(0.9);
       } finally {
         llmModelService.setTemperature(original);
+      }
+    });
+
+    it("notifies subscribers when the model or temperature changes", () => {
+      const listener = vi.fn();
+      const unsubscribe = llmModelService.subscribe(listener);
+      try {
+        llmModelService.setModel("llama3");
+        llmModelService.setTemperature(0.9);
+        expect(listener).toHaveBeenCalledTimes(2);
+      } finally {
+        llmModelService.setModel("gemma4:12b-mlx");
+        llmModelService.setTemperature(0.1);
+        unsubscribe();
       }
     });
   });
@@ -236,7 +248,12 @@ describe("llmModelService", () => {
       stubFetch(async () => ({
         ok: true,
         json: async () => ({
-          models: [{ name: config.MODEL, model: config.MODEL }],
+          models: [
+            {
+              name: llmModelService.getModel(),
+              model: llmModelService.getModel(),
+            },
+          ],
         }),
       }));
 
@@ -248,7 +265,10 @@ describe("llmModelService", () => {
         ok: true,
         json: async () => ({
           models: [
-            { name: `${config.MODEL}:latest`, model: `${config.MODEL}:latest` },
+            {
+              name: `${llmModelService.getModel()}:latest`,
+              model: `${llmModelService.getModel()}:latest`,
+            },
           ],
         }),
       }));
@@ -328,7 +348,12 @@ describe("llmModelService", () => {
       stubFetch(async () => ({
         ok: true,
         json: async () => ({
-          models: [{ name: config.MODEL, model: config.MODEL }],
+          models: [
+            {
+              name: llmModelService.getModel(),
+              model: llmModelService.getModel(),
+            },
+          ],
         }),
       }));
 

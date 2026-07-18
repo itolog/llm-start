@@ -1,8 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { match } from "ts-pattern";
 
-import { config } from "@/config";
 import { llmModelService } from "@/services/llm-model";
 
 import { UseModelOptions } from "./use-model.type";
@@ -10,9 +15,21 @@ import { UseModelOptions } from "./use-model.type";
 // Owns model/temperature runtime state: the picker/stepper visibility, the
 // startup resolution + availability tracking, and the apply/select/cancel
 // actions shared by the `/model`|`/temp` commands and their interactive UIs.
-// `modelAvailableRef` is exposed so the translation flow can block requests
-// against a model Ollama does not have pulled.
-export function useModel({ addMessage, setModel, setTemp }: UseModelOptions) {
+// The active model/temperature are read straight from the service (the single
+// source of truth) via useSyncExternalStore, so switching them re-renders the
+// UI without a duplicate copy in component state. `modelAvailableRef` is
+// exposed so the translation flow can block requests against a model Ollama
+// does not have pulled.
+export function useModel({ addMessage }: UseModelOptions) {
+  const model = useSyncExternalStore(
+    llmModelService.subscribe,
+    llmModelService.getModel,
+  );
+  const temp = useSyncExternalStore(
+    llmModelService.subscribe,
+    llmModelService.getTemperature,
+  );
+
   // Non-null while the model picker is open (holds the installed model tags).
   const [modelItems, setModelItems] = useState<string[] | null>(null);
   const [tempPickerOpen, setTempPickerOpen] = useState(false);
@@ -25,9 +42,10 @@ export function useModel({ addMessage, setModel, setTemp }: UseModelOptions) {
     const available = await llmModelService.checkModelAvailable();
     modelAvailableRef.current = available;
     if (!available) {
+      const active = llmModelService.getModel();
       addMessage(
         "Bot",
-        `Error: Model "${config.MODEL}" is not available. Please pull the model first using: ollama pull ${config.MODEL}`,
+        `Error: Model "${active}" is not available. Please pull the model first using: ollama pull ${active}`,
       );
     }
   }, [addMessage]);
@@ -46,9 +64,8 @@ export function useModel({ addMessage, setModel, setTemp }: UseModelOptions) {
         );
       })
       .with({ status: "fallback" }, ({ model }) => {
-        const wanted = config.MODEL;
+        const wanted = llmModelService.getModel();
         llmModelService.setModel(model);
-        setModel(model);
         addMessage(
           "Bot",
           `Model "${wanted}" is not installed — switched to "${model}". Use /model to pick another.`,
@@ -59,7 +76,7 @@ export function useModel({ addMessage, setModel, setTemp }: UseModelOptions) {
         modelAvailableRef.current = true;
       })
       .exhaustive();
-  }, [addMessage, setModel]);
+  }, [addMessage]);
 
   useEffect(() => {
     initModel();
@@ -69,11 +86,10 @@ export function useModel({ addMessage, setModel, setTemp }: UseModelOptions) {
   const applyModel = useCallback(
     async (model: string) => {
       llmModelService.setModel(model);
-      setModel(model);
       addMessage("Bot", `Model changed to: ${model}`);
       await verifyModel();
     },
-    [setModel, addMessage, verifyModel],
+    [addMessage, verifyModel],
   );
 
   // Opens the interactive picker for bare `/model` — unless nothing is
@@ -101,10 +117,9 @@ export function useModel({ addMessage, setModel, setTemp }: UseModelOptions) {
   const applyTemp = useCallback(
     (temp: number) => {
       llmModelService.setTemperature(temp);
-      setTemp(temp);
       addMessage("Bot", `Temperature changed to: ${temp}`);
     },
-    [setTemp, addMessage],
+    [addMessage],
   );
 
   const openTempPicker = useCallback(() => setTempPickerOpen(true), []);
@@ -120,6 +135,8 @@ export function useModel({ addMessage, setModel, setTemp }: UseModelOptions) {
   const cancelTempPicker = useCallback(() => setTempPickerOpen(false), []);
 
   return {
+    model,
+    temp,
     modelItems,
     tempPickerOpen,
     modelAvailableRef,

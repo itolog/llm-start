@@ -19,8 +19,6 @@ export function useChat({
   toLang,
   setFromLang,
   setToLang,
-  setModel,
-  setTemp,
 }: UseChatOptions) {
   const { exit } = useApp();
   const [input, setInput] = useState("");
@@ -29,6 +27,8 @@ export function useChat({
     useMessages();
 
   const {
+    model,
+    temp,
     modelItems,
     tempPickerOpen,
     modelAvailableRef,
@@ -40,7 +40,7 @@ export function useChat({
     openTempPicker,
     selectTemp,
     cancelTempPicker,
-  } = useModel({ addMessage, setModel, setTemp });
+  } = useModel({ addMessage });
 
   const { isLoading, stats, handleTranslate } = useTranslation({
     fromLang,
@@ -107,6 +107,8 @@ export function useChat({
     submit,
     clear,
     stats,
+    model,
+    temp,
     modelItems,
     selectModel,
     cancelModelPicker,

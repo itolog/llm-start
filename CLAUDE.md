@@ -81,10 +81,13 @@ src/
   index.tsx        # Entry point — render(<App />)
   stubs/           # react-devtools-core empty stub (Ink dev-only import, wired via tsconfig paths)
   app/             # Root App component
-  config/          # active `config` (mutable model defaults) + appConfig; model-config/ + app-config/ sub-modules
+  config/          # static baselines only: defaultModelConfig (boot values) + appConfig;
+                   #   model-config/ + app-config/ sub-modules. The *active* model/temp live in
+                   #   LlmModelService (single source), not here.
   components/       # header, settings-bar, message-list, message, commands-help, live-timer,
                    #   loading-indicator, input-bar, model-picker, temp-picker
-  hooks/           # use-chat — messages, submit, abort, translate
+  hooks/           # use-chat orchestrator + module-local sub-hooks (hooks/): use-messages,
+                   #   use-translation, use-model
   types/           # message.type.ts (plain type file, not a module)
   commands/        # parse-command — parses in-app /commands
   services/        # llm-model — LlmModelService (ChatOllama + chain) as llmModelService singleton;
@@ -148,6 +151,10 @@ file (not this list) when the detail changes.
 - The translation chain (`prompt.pipe(llm)`) is built once in the `LlmModelService` constructor,
   not per request. The service is a singleton `llmModelService` and owns request orchestration
   (timeout, abort, retry, text cleaning); `useChat` only owns the per-submit `AbortController`.
+- **The service is the single source of truth for the active model + temperature** (seeded from
+  `defaultModelConfig`; `setModel`/`setTemperature` rebuild the chain). React reads them via
+  `subscribe` + `getModel`/`getTemperature` through `useSyncExternalStore` (in `useModel`) — there
+  is no duplicate copy in component state. There is no longer a mutable global `config` object.
 - `AbortController` is per-submit; the timeout also calls `controller.abort()` to close the HTTP
   connection to Ollama. `withRetry` does **not** retry `AbortError` — user cancellation is
   intentional.

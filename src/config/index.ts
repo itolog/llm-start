@@ -1,10 +1,7 @@
-import { defaultModelConfig, ModelConfig } from "./model-config";
-
-// Active model configuration. A mutable copy of the defaults so runtime
-// overrides (the /model and /temp commands, applied via LlmModelService) layer
-// on top without touching the frozen baseline in model-config.
-export const config: ModelConfig = { ...defaultModelConfig };
-
+// The active model/temperature are no longer duplicated here: LlmModelService
+// owns them at runtime (seeded from `defaultModelConfig`) and is the single
+// source React reads from. This module exposes only the static baselines.
+export { defaultModelConfig } from "./model-config";
 export type { ModelConfig } from "./model-config";
 export { appConfig } from "./app-config";
 export type { AppConfig } from "./app-config";
