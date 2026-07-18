@@ -66,11 +66,19 @@ export const InputBar = ({ value, onChange, onSubmit }: InputBarProps) => {
     }
   };
 
-  // The dropdown renders BELOW the prompt (not above): the frame grows and
-  // shrinks from its bottom edge, so the prompt never jumps and closing the
-  // list leaves no stale blank region where taller content used to be.
+  // The dropdown renders ABOVE the prompt (opencode / Claude Code style): the
+  // prompt is the last child, and App pins the whole frame to the bottom edge
+  // (`minHeight={rows}` + `justifyContent="flex-end"`), so opening/closing the
+  // list grows and shrinks the space *above* the prompt while the prompt itself
+  // stays put at the bottom.
   return (
     <Box flexDirection="column">
+      {isOpen ? (
+        <CommandSuggestions
+          suggestions={suggestions}
+          selectedIndex={selectedIndex}
+        />
+      ) : null}
       <Box>
         <Text color="yellow">&gt; </Text>
         <TextInput
@@ -81,12 +89,6 @@ export const InputBar = ({ value, onChange, onSubmit }: InputBarProps) => {
           placeholder="Type to translate. /help for commands."
         />
       </Box>
-      {isOpen ? (
-        <CommandSuggestions
-          suggestions={suggestions}
-          selectedIndex={selectedIndex}
-        />
-      ) : null}
     </Box>
   );
 };

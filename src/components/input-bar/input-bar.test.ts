@@ -40,6 +40,20 @@ describe("InputBar", () => {
     expect(lastFrame()).not.toContain("Set the source language");
   });
 
+  it("renders the suggestions above the prompt row", () => {
+    const { lastFrame } = setup("/");
+    const lines = (lastFrame() ?? "").split("\n");
+    const suggestionLine = lines.findIndex((l) =>
+      l.includes("Set the source language"),
+    );
+    // The prompt is the only line starting with the yellow "> " marker.
+    const promptLine = lines.findIndex((l) => l.trimStart().startsWith(">"));
+
+    expect(suggestionLine).toBeGreaterThanOrEqual(0);
+    expect(promptLine).toBeGreaterThanOrEqual(0);
+    expect(suggestionLine).toBeLessThan(promptLine);
+  });
+
   it("Tab completes to the first suggestion", async () => {
     const { stdin, onChange } = setup("/");
     await tick();
