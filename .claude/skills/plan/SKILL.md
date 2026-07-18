@@ -63,25 +63,25 @@ existing plan, preserve the format and follow the update rules.
 
 ### Statuses
 
-Exactly one status per task, in the Статус column:
+Exactly one status per task, in the Status column:
 
 - `⬜ todo` — not started
 - `🔄 wip` — in progress
 - `✅ done` — completed and verified
-- `❌ wontdo` — decided against (add one-line reason in Заметки)
+- `❌ wontdo` — decided against (add one-line reason in Notes)
 - `💬 discuss` — needs a decision before work starts; do not implement
 
 ### Task rows
 
-- Keep the Задача cell to one short line (imperative: "Удалить ts-node", not
-  "ts-node должен быть удалён"). Details, risks, and multi-line context go to
-  the section's `### Заметки` block, anchored by ID.
-- Дата = completion date for `✅`/`❌`, otherwise `—`.
+- Keep the Task cell to one short line (imperative: "Remove ts-node", not
+  "ts-node should be removed"). Details, risks, and multi-line context go to
+  the section's `### Notes` block, anchored by ID.
+- Date = completion date for `✅`/`❌`, otherwise `—`.
 
 ### Updating a plan
 
-1. Change the task's Статус and Дата — do not move or delete rows.
-2. Update the `Прогресс: <done>/<total>` counter and `Обновлён:` date in the
+1. Change the task's Status and Date — do not move or delete rows.
+2. Update the `Progress: <done>/<total>` counter and `Updated:` date in the
    header (`✅` counts as done; `❌` reduces total).
 3. Append one line to `## История` (date — what changed).
 4. Superseded/obsolete tasks become `❌ wontdo` with a reason — never silently
