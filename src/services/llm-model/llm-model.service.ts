@@ -38,6 +38,10 @@ class LlmModelService {
   // temperature. Called on construction and whenever they change at runtime.
   private rebuild(): void {
     this.llm = new ChatOllama({
+      // Same host as fetchTags() — without this, inference falls back to the
+      // library default and could diverge from the /api/tags checks (and from
+      // an OLLAMA_URL override).
+      baseUrl: appConfig.OLLAMA_BASE_URL,
       model: this.model,
       temperature: this.temperature,
     });

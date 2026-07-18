@@ -1,6 +1,6 @@
 # Code Review 2026-07-18
 
-> Progress: 5/13 · Created: 2026-07-18 · Updated: 2026-07-18
+> Progress: 8/13 · Created: 2026-07-18 · Updated: 2026-07-18
 > Branch: `main` · Scope: Full project review
 
 ## A. Architecture
@@ -9,9 +9,9 @@
 | --- | --- | --- | --- |
 | A1 | Split useChat into smaller hooks | ✅ done | 2026-07-18 |
 | A2 | Eliminate dual source of truth for config | ✅ done | 2026-07-18 |
-| A3 | Introduce an Ink error boundary | ⬜ todo | — |
-| A4 | Add environment variable support for Ollama URL | ⬜ todo | — |
-| A5 | Pass `OLLAMA_BASE_URL` to ChatOllama in LlmModelService | ⬜ todo | — |
+| A3 | Introduce an Ink error boundary | ✅ done | 2026-07-18 |
+| A4 | Add environment variable support for Ollama URL | ✅ done | 2026-07-18 |
+| A5 | Pass `OLLAMA_BASE_URL` to ChatOllama in LlmModelService | ✅ done | 2026-07-18 |
 
 ### Notes
 
@@ -38,21 +38,22 @@
   `useState` and `useChat` no longer takes `setModel`/`setTemp`. CLAUDE.md
   updated (config layout + LLM-service single-source note). Verify + build
   green (136 tests).
-- **A3** — Ink supports error boundaries via `react-error-boundary` or a
-  custom wrapper. Currently any render crash (e.g., corrupt message state)
-  kills the app with no recovery. Add a boundary around `<App>` in
-  `src/index.tsx`.
-- **A4** — `OLLAMA_BASE_URL` is hardcoded in `src/config/app-config/app-config.ts`.
-  Add `process.env.OLLAMA_URL ??` fallback so users can point to a remote
-  Ollama host without editing source. Depends on A5 — without it the env var
-  would only affect `/api/tags`, not inference.
-- **A5** — `rebuild()` creates `new ChatOllama({ model, temperature })`
-  **without** `baseUrl`, so inference relies on the LangChain library default
-  (`http://localhost:11434`) while `fetchTags()` uses
-  `appConfig.OLLAMA_BASE_URL`. Today the two coincide by luck; any change to
-  the config (or A4's env var) would silently split model checks and
-  inference across different hosts. Pass
-  `baseUrl: appConfig.OLLAMA_BASE_URL` in `rebuild()`.
+- **A3** — Done: added `src/components/error-boundary/` — a class component
+  (no hook equivalent for error boundaries) using `getDerivedStateFromError`
+  to show a contained red fallback card ("Something went wrong" + the error
+  message + Ctrl+C hint) instead of tearing down Ink with a raw stack trace.
+  Wired around `<App>` in `src/index.tsx`. No extra dependency
+  (`react-error-boundary` not needed). Tested via ink-testing-library (renders
+  children normally; renders the fallback on a child throw).
+- **A4** — Done: `OLLAMA_BASE_URL` now reads `process.env.OLLAMA_URL`, using
+  `||` (not `??`) so an unset *or* empty value falls back to
+  `http://localhost:11434`. Users can target a remote Ollama host without
+  editing source. Tested by stubbing the env + re-importing the module.
+- **A5** — Done: `rebuild()` now passes `baseUrl: appConfig.OLLAMA_BASE_URL`
+  to `ChatOllama`, so inference and the `/api/tags` checks hit the same host
+  (and honour A4's `OLLAMA_URL`). Verified at runtime: with
+  `OLLAMA_URL=http://remote:9999`, the service's `ChatOllama.baseUrl` resolves
+  to that host.
 
 ## B. Code quality
 
@@ -159,8 +160,8 @@
 2. **A1 + B2** — splitting useChat is the largest refactor; the
    AbortSignal cleanup naturally falls out of it.
 3. **B4** — small self-contained fix, can ride along with A1.
-4. **A5 + A4 + A3** — baseUrl first (A4 depends on it), then env var and
-   error boundary; all additive, no refactoring.
+4. **A5 + A4 + A3** — done: baseUrl passthrough, OLLAMA_URL env var, and the
+   Ink error boundary; all additive, no refactoring.
 5. **E1** — self-contained UI tweak; needs manual terminal verification.
 6. **C2** — component render/interaction tests (C1 smoke test already done).
 7. **B1** — pending decision; do last if at all.
@@ -184,3 +185,7 @@
 - 2026-07-18 — A2 done (absorbs B3): LlmModelService is the single source of
   truth for active model/temp; React reads it via useSyncExternalStore; mutable
   global `config` removed. 136 tests, verify + build green.
+- 2026-07-18 — A3/A4/A5 done: Ink error boundary around `<App>`; `OLLAMA_URL`
+  env var for the Ollama host; `baseUrl` passed to ChatOllama (inference +
+  /api/tags share one host). 140 tests, verify + build green; env→baseUrl flow
+  verified at runtime.
