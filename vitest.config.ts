@@ -11,6 +11,10 @@ export default defineConfig({
     },
   },
   test: {
+    // Ink tests assert on raw frame text; callers like concurrently (verify) and
+    // IDE runners inject FORCE_COLOR, which would wrap frames in ANSI codes.
+    // Force color off so frames are byte-identical regardless of the caller.
+    env: { FORCE_COLOR: "0" },
     include: ["src/**/*.test.ts"],
     exclude: ["dist/**"],
     coverage: {
