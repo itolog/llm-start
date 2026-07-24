@@ -11,16 +11,22 @@ model + temperature are seeded from `src/config/model-config/`.
 **`bun` is the only package manager and script runner here — never invoke `npm`, `npx`, `yarn`, or `pnpm`.** Use `bun run <script>` for scripts and `bunx <tool>` for one-off binaries. `bun run` with no argument lists every script.
 
 ```bash
-bun start             # Run the TUI app
-bun run dev           # Run with file watching
-bun run build         # Standalone binary → dist/lang-app
-bun run test          # Vitest — never `bun test`
-bun run fix:lint      # Auto-fix lint errors
-bun run format        # Format all files
-bun run verify        # lint + test
+bun start
+bun run dev
+bun run build
+bun run test
+bun run fix:lint
+bun run format
+bun run verify
 ```
 
-Always run `bun run verify` before considering a task done, and fix what it reports before moving on.
+`dev` watches files; `build` emits the standalone `dist/lang-app`; `fix:lint` and `format` auto-fix.
+
+`bun run test` runs Vitest — **never `bun test`** (different runtime, incompatible APIs).
+
+`bun run verify` is lint + test: always run it before considering a task done, and fix what it reports before moving on.
+
+Keep this block free of trailing `#` comments — extra words after a script name are passed through as arguments to it, and `verify` forwards them to `concurrently`, which then tries to execute each word as a command.
 
 ## Planning
 

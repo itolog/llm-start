@@ -386,8 +386,49 @@ describe("useChat", () => {
     expect(mockTranslate).toHaveBeenCalledTimes(1);
     // input is preserved so the user can stop the running request and resubmit
     expect(result.current.input).toBe("world");
+    // and the blocked submit is never silent
+    expect(texts(result).some((t) => t.includes("press Esc to stop it"))).toBe(
+      true,
+    );
 
     await finish();
+  });
+
+  it("cancelTranslation aborts the running request and marks the card", async () => {
+    // signal-aware mock: the service rejects with AbortError once aborted
+    mockTranslate.mockImplementation(
+      ({ signal }: { signal: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          signal.addEventListener("abort", () =>
+            reject(Object.assign(new Error("aborted"), { name: "AbortError" })),
+          );
+        }),
+    );
+    const { result } = setup();
+
+    let submitted!: Promise<void>;
+    act(() => result.current.setInput("hello"));
+    await act(async () => {
+      submitted = result.current.submit();
+    });
+    expect(result.current.isLoading).toBe(true);
+
+    await act(async () => {
+      result.current.cancelTranslation();
+      await submitted;
+    });
+
+    expect(texts(result)).toContain("Request cancelled");
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it("cancelTranslation is a no-op when nothing is running", async () => {
+    const { result } = setup();
+
+    act(() => result.current.cancelTranslation());
+
+    expect(result.current.messages).toHaveLength(1);
+    expect(result.current.isLoading).toBe(false);
   });
 
   it("still runs pure commands while a translation is in flight", async () => {

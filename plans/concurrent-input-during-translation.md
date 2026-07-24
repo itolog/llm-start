@@ -1,6 +1,6 @@
 # Handling Input During an In-Flight Translation
 
-> Progress: 2/9 · Created: 2026-07-22 · Updated: 2026-07-24
+> Progress: 6/9 · Created: 2026-07-22 · Updated: 2026-07-24
 > Branch: `main` · Scope: define & implement what happens when the user submits while a translation is still streaming
 
 ## Context
@@ -64,9 +64,9 @@ Key facts established from the code:
 
 | ID | Task | Status | Date |
 | --- | --- | --- | --- |
-| B1 | Expose a `cancel` action from `useTranslation` (abort current) up through `useChat` | ⬜ todo | — |
-| B2 | Wire `Esc`-to-cancel, active only while `isLoading` (no conflict with pickers/suggestions) | ⬜ todo | — |
-| B3 | A `translate` submit while loading → visible hint ("press Esc to stop first"), not silent | ⬜ todo | — |
+| B1 | Expose a `cancel` action from `useTranslation` (abort current) up through `useChat` | ✅ done | 2026-07-24 |
+| B2 | Wire `Esc`-to-cancel, active only while `isLoading` (no conflict with pickers/suggestions) | ✅ done | 2026-07-24 |
+| B3 | A `translate` submit while loading → visible hint ("press Esc to stop first"), not silent | ✅ done | 2026-07-24 |
 
 ### Notes
 
@@ -79,12 +79,21 @@ Key facts established from the code:
 - **B3** — With interrupt-first, hitting Enter on new text mid-translation must
   not be a silent no-op; post a short Bot notice telling the user to stop the
   current one first.
+- **Implementation** — `cancel` in `useTranslation` just calls
+  `abortControllerRef.current?.abort()`; the aborted request's own `catch` still
+  writes "Request cancelled" and clears `isLoading`, so no extra unwinding.
+  Exposed as `cancelTranslation` from `useChat` → `App` → `InputBar`. The `Esc`
+  binding lives **inside `InputBar`** as a second `useInput` gated on
+  `isLoading && !isOpen`, mutually exclusive with the existing dropdown handler
+  (`isActive: isOpen`) — exactly one reacts per keypress, and pickers can't
+  collide because `App` mounts only one of the three at a time. B3 hint is
+  posted on each blocked submit (not deduped — repeated Enter repeats it).
 
 ## C. Chain-affecting commands while loading — apply, let finish
 
 | ID | Task | Status | Date |
 | --- | --- | --- | --- |
-| C1 | `/model` & `/temp` apply immediately during load; in-flight stream finishes on old settings (no abort) | ⬜ todo | — |
+| C1 | `/model` & `/temp` apply immediately during load; in-flight stream finishes on old settings (no abort) | ✅ done | 2026-07-24 |
 
 ### Notes
 
@@ -127,3 +136,7 @@ Key facts established from the code:
   category-aware guard in `submit`; tests for the util and for pure /
   chain-affecting / translate submits during load. C1 verified in passing
   (`/model` mid-load applies, re-checks availability, stream finishes).
+- 2026-07-24 — B1–B3 done: `cancel` → `cancelTranslation` through `useChat`,
+  `Esc` handler in `InputBar` gated on `isLoading && !isOpen`, hint on a blocked
+  translate submit. C1 marked done (covered by the A-phase test). 5 new tests
+  (183 total); `bun run verify` green.

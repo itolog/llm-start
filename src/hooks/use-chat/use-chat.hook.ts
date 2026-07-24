@@ -43,7 +43,13 @@ export function useChat({
     cancelTempPicker,
   } = useModel({ addMessage });
 
-  const { isLoading, stats, handleTranslate, resetStats } = useTranslation({
+  const {
+    isLoading,
+    stats,
+    handleTranslate,
+    resetStats,
+    cancel: cancelTranslation,
+  } = useTranslation({
     fromLang,
     toLang,
     modelAvailableRef,
@@ -74,7 +80,13 @@ export function useChat({
     // streaming — pure commands (/help, /exit, …) and chain-affecting ones
     // (/model, /temp, which apply to the next request) stay usable. The input
     // is kept so the user can stop the running request and resubmit as is.
-    if (isLoading && getCommandCategory(command) === "translate") return;
+    if (isLoading && getCommandCategory(command) === "translate") {
+      addMessage(
+        "Bot",
+        "A translation is still running — press Esc to stop it, then send again.",
+      );
+      return;
+    }
 
     setInput("");
 
@@ -119,6 +131,7 @@ export function useChat({
     input,
     setInput,
     submit,
+    cancelTranslation,
     clear: clearChat,
     stats,
     model,

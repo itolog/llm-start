@@ -23,6 +23,7 @@ export const App = () => {
     input,
     setInput,
     submit,
+    cancelTranslation,
     stats,
     model,
     temp,
@@ -87,7 +88,13 @@ export const App = () => {
           />
         ))
         .otherwise(() => (
-          <InputBar value={input} onChange={setInput} onSubmit={submit} />
+          <InputBar
+            value={input}
+            onChange={setInput}
+            onSubmit={submit}
+            isLoading={isLoading}
+            onCancel={cancelTranslation}
+          />
         ))}
     </Box>
   );

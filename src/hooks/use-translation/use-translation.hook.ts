@@ -90,5 +90,13 @@ export function useTranslation({
 
   const resetStats = useCallback(() => setStats(null), []);
 
-  return { isLoading, stats, handleTranslate, resetStats };
+  // User-triggered stop (Esc). No-op when idle — the ref is cleared in the
+  // `finally` above. The aborted request's own `catch` writes "Request
+  // cancelled" onto its card and clears `isLoading`, so there is nothing to
+  // unwind here.
+  const cancel = useCallback(() => {
+    abortControllerRef.current?.abort();
+  }, []);
+
+  return { isLoading, stats, handleTranslate, resetStats, cancel };
 }

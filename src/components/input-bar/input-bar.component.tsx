@@ -9,7 +9,13 @@ import { CommandSuggestions } from "@/components/command-suggestions";
 import { InputBarProps } from "./input-bar.type";
 import { suggestCommands } from "./utils/suggest-commands";
 
-export const InputBar = ({ value, onChange, onSubmit }: InputBarProps) => {
+export const InputBar = ({
+  value,
+  onChange,
+  onSubmit,
+  isLoading,
+  onCancel,
+}: InputBarProps) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   // Esc hides the dropdown until the input changes again; without this flag
   // the suggestions (derived from `value`) would reappear on the next render.
@@ -56,6 +62,20 @@ export const InputBar = ({ value, onChange, onSubmit }: InputBarProps) => {
         .otherwise(() => {});
     },
     { isActive: isOpen },
+  );
+
+  // ! Esc is contended. The two handlers are mutually exclusive by `isActive`
+  // (`isOpen` vs `!isOpen`), so exactly one reacts per keypress: with the
+  // dropdown open Esc dismisses it, otherwise it stops a running translation.
+  // Pickers can't collide — App mounts only one of InputBar / ModelPicker /
+  // TempPicker at a time.
+  useInput(
+    (_input, key) => {
+      if (key.escape) {
+        onCancel();
+      }
+    },
+    { isActive: isLoading && !isOpen },
   );
 
   const handleSubmit = () => {

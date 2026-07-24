@@ -18,13 +18,20 @@ const KEY = {
 // asynchronously, so let the event loop turn around each keypress.
 const tick = () => new Promise((resolve) => setTimeout(resolve, 20));
 
-function setup(value: string) {
+function setup(value: string, { isLoading = false } = {}) {
   const onChange = vi.fn();
   const onSubmit = vi.fn();
+  const onCancel = vi.fn();
   const utils = render(
-    React.createElement(InputBar, { value, onChange, onSubmit }),
+    React.createElement(InputBar, {
+      value,
+      onChange,
+      onSubmit,
+      isLoading,
+      onCancel,
+    }),
   );
-  return { ...utils, onChange, onSubmit };
+  return { ...utils, onChange, onSubmit, onCancel };
 }
 
 describe("InputBar", () => {
@@ -90,6 +97,33 @@ describe("InputBar", () => {
     stdin.write(KEY.esc);
     await tick();
     expect(lastFrame()).not.toContain("Set the source language");
+  });
+
+  it("Esc stops a running translation when no suggestions are open", async () => {
+    const { stdin, onCancel } = setup("hello", { isLoading: true });
+    await tick();
+    stdin.write(KEY.esc);
+    await tick();
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("Esc dismisses the dropdown instead of cancelling while suggestions are open", async () => {
+    const { stdin, onCancel, lastFrame } = setup("/", { isLoading: true });
+    await tick();
+    stdin.write(KEY.esc);
+    await tick();
+
+    // exactly one handler reacts: the dropdown closes, the request keeps running
+    expect(lastFrame()).not.toContain("Set the source language");
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it("Esc does nothing when idle", async () => {
+    const { stdin, onCancel } = setup("hello");
+    await tick();
+    stdin.write(KEY.esc);
+    await tick();
+    expect(onCancel).not.toHaveBeenCalled();
   });
 
   it("submits plain text on Enter (no suggestions open)", async () => {
