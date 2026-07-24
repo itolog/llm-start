@@ -349,6 +349,77 @@ describe("useChat", () => {
     expect(mockTranslate).toHaveBeenCalledTimes(1);
   });
 
+  // Starts a translation that stays in flight until the returned `resolve` is
+  // called, so submits during loading can be exercised.
+  async function startPendingTranslation(
+    result: { current: ReturnType<typeof useChat> },
+    text = "hello",
+  ) {
+    let resolve!: (value: ReturnType<typeof translationResult>) => void;
+    mockTranslate.mockReturnValue(
+      new Promise((res) => {
+        resolve = res;
+      }),
+    );
+
+    let submitted!: Promise<void>;
+    act(() => result.current.setInput(text));
+    await act(async () => {
+      submitted = result.current.submit();
+    });
+    expect(result.current.isLoading).toBe(true);
+
+    return async () => {
+      await act(async () => {
+        resolve(translationResult("bonjour"));
+        await submitted;
+      });
+    };
+  }
+
+  it("does not start a second translation while one is in flight", async () => {
+    const { result } = setup();
+    const finish = await startPendingTranslation(result);
+
+    await submitText(result, "world");
+
+    expect(mockTranslate).toHaveBeenCalledTimes(1);
+    // input is preserved so the user can stop the running request and resubmit
+    expect(result.current.input).toBe("world");
+
+    await finish();
+  });
+
+  it("still runs pure commands while a translation is in flight", async () => {
+    const { result } = setup();
+    const finish = await startPendingTranslation(result);
+
+    await submitText(result, "/help");
+    await submitText(result, "/exit");
+
+    expect(texts(result).length).toBeGreaterThan(0);
+    expect(mockExit).toHaveBeenCalledTimes(1);
+    expect(mockTranslate).toHaveBeenCalledTimes(1);
+
+    await finish();
+  });
+
+  it("applies /model while a translation is in flight and lets it finish", async () => {
+    const { result } = setup();
+    const finish = await startPendingTranslation(result);
+    mockCheckModel.mockClear(); // ignore the mount-time check
+
+    await submitText(result, "/model llama3");
+
+    expect(mockSetModel).toHaveBeenCalledWith("llama3");
+    expect(mockCheckModel).toHaveBeenCalledTimes(1); // re-verified mid-flight
+    expect(result.current.isLoading).toBe(true); // running request not aborted
+
+    await finish();
+
+    expect(texts(result)).toContain("bonjour"); // finished on the old chain
+  });
+
   it("ignores empty input", async () => {
     const { result } = setup();
 

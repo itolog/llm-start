@@ -46,55 +46,6 @@ bun run verify        # bun run lint && bun run test
 
 Always run `bun run verify` before considering a task done. It runs all linters and tests in one command. Fix any errors before moving on.
 
-## Architecture
-
-Each component / hook / utility is a **self-contained module folder**: an
-`index.ts` barrel exposing the public API, the implementation file, an optional
-`*.type.ts` for its types, and co-located tests. Consumers import the folder
-(`import { InputBar } from "../components/input-bar"`), never the inner files.
-
-**Naming convention** — folders and files are **kebab-case**; the file's role is
-a suffix on the basename:
-
-- `*.component.tsx` — React component
-- `*.hook.ts` — React hook
-- `*.util.ts` — pure utility function
-- `*.service.ts` — stateful service (Ollama access)
-- `*.type.ts` — types/interfaces only
-- `*.test.ts` — tests (short form, no role suffix)
-- `index.ts` — public-API barrel
-
-**Util placement** — a helper used by **only one module** lives in that module's
-own `utils/` folder (e.g. `services/llm-model/utils/build-stats/`), imported
-relatively; a helper shared by **2+ modules** lives in the top-level `src/utils/`
-and is imported via the `@/utils/*` alias. Keeping single-use helpers module-local
-also avoids import cycles when the helper needs the module's own types.
-
-Exported binding names stay camelCase/PascalCase (`useChat`, `createMessage`,
-`Header`); only filenames are kebab-case.
-
-Top-level layout (per-file detail is discoverable by browsing — this is the map, not an
-inventory):
-
-```
-src/
-  index.tsx        # Entry point — render(<App />)
-  stubs/           # react-devtools-core empty stub (Ink dev-only import, wired via tsconfig paths)
-  app/             # Root App component
-  config/          # static baselines only: defaultModelConfig (boot values) + appConfig;
-                   #   model-config/ + app-config/ sub-modules. The *active* model/temp live in
-                   #   LlmModelService (single source), not here.
-  components/       # header, settings-bar, message-list, message, commands-help, live-timer,
-                   #   loading-indicator, input-bar, model-picker, temp-picker
-  hooks/           # use-chat orchestrator + module-local sub-hooks (hooks/): use-messages,
-                   #   use-translation, use-model
-  types/           # message.type.ts (plain type file, not a module)
-  commands/        # parse-command — parses in-app /commands
-  services/        # llm-model — LlmModelService (ChatOllama + chain) as llmModelService singleton;
-                   #   module-local utils/ (build-stats, model-matches)
-  utils/           # cross-module helpers (@/utils/*): clean-text, create-message, with-retry
-```
-
 ## Planning
 
 Whenever you produce a plan of work — a direct "make a plan" request, finalizing
@@ -143,8 +94,8 @@ file (not this list) when the detail changes.
   relative (a module referencing its own files doesn't go through the alias). `bun`/`tsc` read
   the alias from `tsconfig`; `vitest` does **not**, so it's mirrored in `vitest.config.ts`
   `resolve.alias`.
-- **Module-folder convention** (see Architecture above): import the folder barrel, never the
-  inner files — keeps each unit isolated and testable.
+- **Module-folder convention**: import the folder barrel, never the inner files — keeps each
+  unit isolated and testable.
 
 ### LLM service
 

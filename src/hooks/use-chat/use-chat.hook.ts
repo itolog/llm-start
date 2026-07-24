@@ -3,13 +3,14 @@ import { useCallback, useState } from "react";
 import { useApp } from "ink";
 import { match } from "ts-pattern";
 
-import { parseCommand } from "@/commands/parse-command";
+import { useMessages } from "@/hooks/use-messages";
+import { useModel } from "@/hooks/use-model";
+import { useTranslation } from "@/hooks/use-translation";
 import { createMessage } from "@/utils/create-message";
+import { parseCommand } from "@/utils/parse-command";
 
-import { useMessages } from "./hooks/use-messages";
-import { useModel } from "./hooks/use-model";
-import { useTranslation } from "./hooks/use-translation";
 import { UseChatOptions } from "./use-chat.type";
+import { getCommandCategory } from "./utils/command-category";
 
 // Composes the message, model and translation sub-hooks and owns the one
 // concern that spans them: parsing the input and dispatching each `/command`
@@ -64,10 +65,16 @@ export function useChat({
   }, [appendMessage]);
 
   const submit = useCallback(async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim()) return;
 
     const userText = input.trim();
     const command = parseCommand(userText);
+
+    // Interrupt-first: only a *new translation* is gated while one is
+    // streaming — pure commands (/help, /exit, …) and chain-affecting ones
+    // (/model, /temp, which apply to the next request) stay usable. The input
+    // is kept so the user can stop the running request and resubmit as is.
+    if (isLoading && getCommandCategory(command) === "translate") return;
 
     setInput("");
 

@@ -9,12 +9,8 @@ registry = "https://registry.npmjs.org/"
 # Eliminates dependency drift through semver ranges
 exact = true
 
-# Quarantine freshly-published versions: refuse to install any package
-# version younger than this (seconds). Compromised releases are usually
-# yanked within days, so a cooldown avoids pulling a malicious version
-# during the window before it is caught. 432000 = 5 days.
-# Need an urgent patch sooner? Exempt it via `minimumReleaseAgeExcludes`.
-#minimumReleaseAge = 432000
+# Only install package versions published at least 3 days ago
+#minimumReleaseAge = 259200
 
 [install.lockfile]
 # Always write the lockfile — guarantees reproducibility and integrity

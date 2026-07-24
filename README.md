@@ -68,40 +68,10 @@ Type into the input field. Anything not starting with `/` is translated.
 - `/help` — List available commands.
 - `/exit` (`/quit`, `/q`) — Close the app.
 
-## 🏗 Architecture
-
-Each component / hook / utility is a self-contained **kebab-case module folder**
-with an `index.ts` barrel; consumers import the folder, not the inner files.
-
-- `src/index.tsx` — entry point (renders `<App />` inside an `ErrorBoundary`).
-- `src/app/` — root `App` component wiring the UI together.
-- `src/components/` — `header`, `settings-bar`, `stats-bar`, `message-list`,
-  `message`, `commands-help`, `command-suggestions`, `live-timer`,
-  `loading-indicator`, `input-bar`, `model-picker`, `temp-picker`,
-  `error-boundary`.
-- `src/hooks/use-chat/` — orchestrator that parses input and dispatches
-  `/commands`, composed from module-local sub-hooks (`hooks/`): `use-messages`
-  (transcript), `use-translation` (translate + stats + abort), `use-model`
-  (model/temp state, pickers, startup resolution).
-- `src/commands/parse-command/` — parses in-app `/` commands.
-- `src/services/llm-model/` — LangChain + Ollama integration (`llmModelService`
-  singleton). It is the single source of truth for the active model +
-  temperature (`getModel`/`getTemperature`/`subscribe` for React,
-  `setModel`/`setTemperature` to change them), plus `translate`,
-  `checkModelAvailable`, `listModels`, `resolveStartupModel`.
-- `src/config/` — static baselines only: `model-config/` (`defaultModelConfig`
-  boot values) and `app-config/` (network, timeouts, history cap). The *active*
-  model/temperature live in `llmModelService`, not here.
-- `src/utils/` — `clean-text`, `create-message`, `with-retry`.
-
-Imports use the **`@/*` → `src/*`** path alias for cross-module references
-(`import { useChat } from "@/hooks/use-chat"`); imports **within** a module stay
-relative (`./header.component`).
-
-See `CLAUDE.md` for the full module/naming convention.
-
 ## 🛠 Development
 
+- **Conventions**: `CLAUDE.md` (key decisions — runtime, imports, tooling) and
+  `docs/style-guide.md` (comment/style judgement calls).
 - **Run in watch mode**: `bun run dev`
 - **Linting**: `bun run lint` (powered by [Oxc](https://oxc.rs/) / `oxlint`)
 - **Formatting**: `bun run format` (powered by [Oxc](https://oxc.rs/) / `oxfmt`)
