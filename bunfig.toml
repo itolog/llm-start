@@ -10,7 +10,7 @@ registry = "https://registry.npmjs.org/"
 exact = true
 
 # Only install package versions published at least 3 days ago
-#minimumReleaseAge = 259200
+minimumReleaseAge = 259200
 
 [install.lockfile]
 # Always write the lockfile — guarantees reproducibility and integrity

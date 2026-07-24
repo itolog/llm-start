@@ -1,78 +1,41 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Project Overview
 
-A terminal-based translation app (TUI) built with **Ink** (React for CLI), **LangChain**, and **Ollama**. The user types text in the terminal and receives translations powered by a locally running Ollama LLM.
-
-## Prerequisites
-
-- [Bun](https://bun.sh/) (`engines.bun` pins the version; runs and builds the app, no Node.js required)
-- [Ollama](https://ollama.com/) installed and running locally
-- A model pulled in Ollama (e.g., `gemma3:4b`)
-- Model defaults set in `src/config/default-model-config.ts` (`MODEL`, `LLM_TEMP`)
+A terminal-based translation app (TUI) built with **Ink** (React for CLI), **LangChain**, and
+**Ollama**. Running it needs a local Ollama with at least one model pulled; the *preferred*
+model + temperature are seeded from `src/config/model-config/`.
 
 ## Commands
 
-**`bun` is the only package manager and script runner here — never invoke `npm`, `npx`,
-`yarn`, or `pnpm`.** Use `bun run <script>` for scripts and `bunx <tool>` for one-off binaries.
+**`bun` is the only package manager and script runner here — never invoke `npm`, `npx`, `yarn`, or `pnpm`.** Use `bun run <script>` for scripts and `bunx <tool>` for one-off binaries. `bun run` with no argument lists every script.
 
 ```bash
 bun start             # Run the TUI app
-bun run dev           # Run with file watching (bun --watch)
-bun run build         # Compile to a standalone binary (dist/lang-app) via bun --compile
-
-# Linting (run in parallel via concurrently)
-bun run lint          # Run all lint:* checks in parallel
-bun run lint:code     # Lint check
-bun run lint:types    # Type check (tsc --noEmit)
-bun run lint:format   # Format check
-bun run lint:unused   # Unused files, dependencies, and exports
+bun run dev           # Run with file watching
+bun run build         # Standalone binary → dist/lang-app
+bun run test          # Vitest — never `bun test`
 bun run fix:lint      # Auto-fix lint errors
-
-# Formatting
 bun run format        # Format all files
-
-# Testing
-bun run test          # Run all tests once  (! `bun run test`, never `bun test`)
-bun run test:watch    # Run tests in watch mode
-
-# Full verification — run this after every completed task
-bun run verify        # bun run lint && bun run test
+bun run verify        # lint + test
 ```
 
-## After completing a task
-
-Always run `bun run verify` before considering a task done. It runs all linters and tests in one command. Fix any errors before moving on.
+Always run `bun run verify` before considering a task done, and fix what it reports before moving on.
 
 ## Planning
 
-Whenever you produce a plan of work — a direct "make a plan" request, finalizing
-a plan in **plan mode**, or a **code review** that yields follow-up tasks worth
-tracking — persist it as a file and follow the **`plan` skill**
-(`.claude/skills/plan/SKILL.md`) for the format (task IDs, status column,
-progress header, update rules). Default location is **`plans/`** (git-tracked);
-honor an explicit override if the user names a different path. Update the
-existing plan file in place rather than creating a duplicate.
+A plan of work — asked for directly, finalized in plan mode, or falling out of a code review —
+is persisted as a file following the **`plan` skill**: default location `plans/`, existing plan
+updated in place rather than duplicated.
 
-## Code style
+## Conventions
 
-Judgement calls the linters can't enforce live in **`docs/style-guide.md`**.
-Most important: **comment the *why*, never the *what*** for inline comments —
-delete ones that merely restate the name or body; keep the ones that record an
-invariant, trade-off, or a rejected approach. (Doc comments on the public API —
-exported types, service methods — are the exception: describing *what* they do
-is good, prefer JSDoc.) Standout comments use the
-[Better Comments](https://marketplace.visualstudio.com/items?itemName=aaron-bond.better-comments)
-tags (`// !` alert, `// * ` highlight, `// ? ` query, `// TODO:`), reserved for
-the few comments that need to stand out. See the guide for details.
+Project-agnostic house rules live in `.claude/rules/` and load automatically — don't
+restate them here. The rest of this file is what's specific to this repo.
 
 ## Key Decisions
 
-Non-obvious choices and their *why* — the reasoning you can't recover from the code. Extended
-rationale for the tooling/rendering decisions lives in **`docs/adr/tooling.md`**; update that
-file (not this list) when the detail changes.
+Non-obvious choices and their *why* — the reasoning you can't recover from the code.
 
 ### Runtime & build
 
@@ -94,8 +57,6 @@ file (not this list) when the detail changes.
   relative (a module referencing its own files doesn't go through the alias). `bun`/`tsc` read
   the alias from `tsconfig`; `vitest` does **not**, so it's mirrored in `vitest.config.ts`
   `resolve.alias`.
-- **Module-folder convention**: import the folder barrel, never the inner files — keeps each
-  unit isolated and testable.
 
 ### LLM service
 

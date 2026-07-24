@@ -1,8 +1,13 @@
-# Code style guide
+---
+paths:
+  - "**/*.{ts,tsx,js,jsx,mts,cts}"
+---
 
-House rules that aren't enforced by a linter. Formatting, imports, and module
-layout are covered by the tooling (`oxfmt`, `oxlint`, `knip`) and by
-`CLAUDE.md` — this file is for the judgement calls those can't make.
+# Comments & code style
+
+Portable house rules that no linter enforces — copy this file into any project.
+Formatting and import order are the formatter's job; module layout is covered by
+`module-architecture.md`. This file is for the judgement calls neither can make.
 
 ## Comments
 

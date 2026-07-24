@@ -70,8 +70,9 @@ Type into the input field. Anything not starting with `/` is translated.
 
 ## 🛠 Development
 
-- **Conventions**: `CLAUDE.md` (key decisions — runtime, imports, tooling) and
-  `docs/style-guide.md` (comment/style judgement calls).
+- **Conventions**: `.claude/rules/` — `module-architecture.md` (module folders,
+  naming, helper placement) and `code-comments.md` (comment style). Project
+  specifics (layout, key decisions) are in `CLAUDE.md`.
 - **Run in watch mode**: `bun run dev`
 - **Linting**: `bun run lint` (powered by [Oxc](https://oxc.rs/) / `oxlint`)
 - **Formatting**: `bun run format` (powered by [Oxc](https://oxc.rs/) / `oxfmt`)
